@@ -594,49 +594,6 @@ public class HLLPlusPlus {
 
         return Math.round(rawEstimate);
     }
-//
-//    static class Pair {
-//        double value;
-//        int index;
-//
-//        Pair(double v, int i) {
-//            value = v;
-//            index = i;
-//        }
-//    }
-//
-//    private double estimateBias(double E) {
-//        double[] currentEmpiricalRawEstimateData = empiricalRawEstimateData[p - MIN_P];
-//        double[] currentEmpiricalBiasData = empiricalBiasData[p - MIN_P];
-//        assert(currentEmpiricalBiasData.length == currentEmpiricalRawEstimateData.length);
-//
-//        int n = currentEmpiricalRawEstimateData.length;
-//        if(E < currentEmpiricalRawEstimateData[0] || E > currentEmpiricalRawEstimateData[n - 1])
-//            return E;
-//
-//        PriorityQueue<Pair> maxHeap = new PriorityQueue<>((a, b) -> Double.compare(b.value, a.value));
-//
-//        for(int i=0; i<n; i++) {
-//            double difference = Math.abs(currentEmpiricalRawEstimateData[i] - E);
-//            if(maxHeap.size() < empiricalBiasCorrectionOverEstimates)
-//                maxHeap.add(new Pair(difference, i));
-//            else if(maxHeap.peek().value > difference) {
-//                maxHeap.remove();
-//                maxHeap.add(new Pair(difference, i));
-//            }
-//        }
-//
-//        double averagedBiasCorrection = 0.0;
-//        double heapSize = maxHeap.size();
-//        while(!maxHeap.isEmpty()) {
-//            Pair p = maxHeap.poll();
-//            System.out.println(p.value + " " + p.index + " " + currentEmpiricalRawEstimateData[p.index] + " " + currentEmpiricalBiasData[p.index]);
-//            int index = p.index;
-//            averagedBiasCorrection = averagedBiasCorrection + currentEmpiricalBiasData[index];
-//        }
-//        averagedBiasCorrection = averagedBiasCorrection / heapSize;
-//        return averagedBiasCorrection;
-//    }
 
     private double estimateBias(double E) {
         double[] currentEmpiricalRawEstimateData = empiricalRawEstimateData[p - MIN_P];
