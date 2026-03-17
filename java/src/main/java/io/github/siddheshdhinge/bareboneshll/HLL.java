@@ -265,7 +265,7 @@ public class HLL {
         double zeroRegisters = results[1];
 
         double alphaM = getAlphaM(totalRegisters);
-        double rawEstimate = alphaM * M * M * (1 / sum);
+        double rawEstimate = alphaM * M * M * (1.0 / sum);
 //        System.err.println(rawEstimate);
 
         if(rawEstimate <= (5.0 * M / 2.0) && zeroRegisters > 0) {
