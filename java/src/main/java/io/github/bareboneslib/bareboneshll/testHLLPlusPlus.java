@@ -1,4 +1,4 @@
-package io.github.siddheshdhinge.bareboneshll;
+package io.github.bareboneslib.bareboneshll;
 
 public class testHLLPlusPlus {
     public static byte[] hexStringToByteArray(String hex) {

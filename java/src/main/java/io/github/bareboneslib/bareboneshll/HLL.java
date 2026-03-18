@@ -1,4 +1,4 @@
-package io.github.siddheshdhinge.bareboneshll;
+package io.github.bareboneslib.bareboneshll;
 
 public class HLL {
     // below variables need to be serialized

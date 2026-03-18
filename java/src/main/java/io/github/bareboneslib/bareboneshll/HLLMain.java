@@ -1,4 +1,4 @@
-package io.github.siddheshdhinge.bareboneshll;
+package io.github.bareboneslib.bareboneshll;
 
 import net.openhft.hashing.LongHashFunction;
 
