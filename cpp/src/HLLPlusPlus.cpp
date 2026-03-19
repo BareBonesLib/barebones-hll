@@ -2,16 +2,16 @@
 #include <iostream>
 
 double HLLPlusPlus::PRE_POW_2_K[64];
-bool HLLPlusPlus::initialized = false;
+// bool HLLPlusPlus::initialized = false;
 
-void HLLPlusPlus::initializeStatic() {
-    if (!initialized) {
-        for(int i = 0; i < 64; i++) {
-            PRE_POW_2_K[i] = pow(2.0, -i);
-        }
-        initialized = true;
-    }
-}
+// void HLLPlusPlus::initializeStatic() {
+//     if (!initialized) {
+//         for(int i = 0; i < 64; i++) {
+//             PRE_POW_2_K[i] = pow(2.0, -i);
+//         }
+//         initialized = true;
+//     }
+// }
 
 uint8_t HLLPlusPlus::readRegister(int index) {
     if(isSparse) {
@@ -377,7 +377,7 @@ HLLPlusPlus::HLLPlusPlus(int p) : HLLPlusPlus(p, DEFAULT_R) {
 }
 
 HLLPlusPlus::HLLPlusPlus(int p, int r) {
-    initializeStatic();
+    // initializeStatic();
     
     if(p < MIN_P || p > MAX_P)
         throw std::invalid_argument("invalid p");
@@ -487,7 +487,7 @@ int64_t HLLPlusPlus::estimate() {
         if(this->sparseListIndex > 0)
             mergeTmpSparse();
         double SM = (1 << sp);
-        return llround((SM * std::log(SM / (SM - this->sparseSet.size()))));
+        return std::llround((SM * std::log(SM / (SM - this->sparseSet.size()))));
     }
 
     double results[2];
@@ -504,16 +504,69 @@ int64_t HLLPlusPlus::estimate() {
     double sum = results[0];
     double zeroRegisters = results[1];
 
-    double alphaM = getAlphaM(totalRegisters);
-    double rawEstimate = alphaM * M * M * (1 / sum);
-
-    if(rawEstimate <= (5.0 * M / 2.0) && zeroRegisters > 0) {
-        rawEstimate = M * log(M / zeroRegisters);
-    } else if(rawEstimate > ((1.0 / 30.0) * POW_2_32)) {
-        rawEstimate = -POW_2_32 * log(1 - rawEstimate / POW_2_32);
+    if(zeroRegisters != 0) {
+        double linearCountingEstimate = std::llround(M * log(M / zeroRegisters));
+        if(linearCountingEstimate <= empiricalThreshold[p - MIN_P])
+            return std::llround(linearCountingEstimate);
     }
 
-    return (int64_t) rawEstimate;
+    double alphaM = getAlphaM(totalRegisters);
+    double rawEstimate = alphaM * M * M * (1 / sum);
+    if(rawEstimate <= 5.0 * M) {
+        rawEstimate = rawEstimate - estimateBias(rawEstimate);
+    }
+
+    return std::llround(rawEstimate);
+}
+
+double HLLPlusPlus::estimateBias(double E) {
+    std::vector<double> currentEmpiricalRawEstimateData = empiricalBiasData[p - MIN_P];
+    std::vector<double> currentEmpiricalBiasData = empiricalBiasData[p - MIN_P];
+
+    int n = currentEmpiricalBiasData.size();
+    if(E < currentEmpiricalRawEstimateData[0] || E > currentEmpiricalRawEstimateData[n - 1])
+        return E;
+    
+    int left = 0, right = n - 1;
+    int prev = -1;
+    while(left <= right) { 
+        int mid = (left + right) / 2;
+        double difference = currentEmpiricalRawEstimateData[mid] - E;
+        if(difference < 0) {
+            left = mid + 1;
+        }
+        else {
+            prev = mid;
+            right = mid - 1;
+        }
+    }
+
+    int halfPoints = EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES / 2;
+    int trimmedLeftPoint = 0, trimmedRightPoint = 0;
+
+    if(E == currentEmpiricalRawEstimateData[prev]) {
+        int leftPoint = std::max(0, prev - halfPoints);
+        int rightPoint = std::max(n - 1, prev + halfPoints);
+        int eqDistance = std::min(rightPoint - prev, prev - leftPoint);
+        trimmedLeftPoint = prev - eqDistance;
+        trimmedRightPoint = prev + eqDistance;
+    }
+    else {
+        int leftPoint = std::max(0, prev - halfPoints);
+        int rightPoint = std::max(n - 1, prev + (halfPoints - 1));
+        int eqDistance = std::min(rightPoint - prev + 1, prev - leftPoint);
+        trimmedLeftPoint = prev - eqDistance;
+        trimmedRightPoint = prev + eqDistance - 1;
+    }
+
+    int totalPoints = trimmedRightPoint - trimmedLeftPoint + 1;
+    double averageBiasCorrection = 0;
+    for(int j=trimmedLeftPoint; j<=trimmedRightPoint; j++) {
+        averageBiasCorrection = averageBiasCorrection + currentEmpiricalBiasData[j];
+    }
+    averageBiasCorrection = averageBiasCorrection / totalPoints;
+
+    return averageBiasCorrection;
 }
 
 std::vector<uint8_t> HLLPlusPlus::serialize() {
@@ -556,7 +609,7 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
 }
 
 HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
-    initializeStatic();
+    // initializeStatic();
     if (buff.size() < SERIALIZED_METADATA_FIELDS)
         throw std::invalid_argument("buffer too small");
 

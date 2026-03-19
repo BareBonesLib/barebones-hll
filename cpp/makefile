@@ -1,74 +1,33 @@
-# =====================
-# Compiler & flags
-# =====================
-CXX := g++
+CXX      := g++
 CXXFLAGS := -std=c++17 -O3 -Wall -Wextra
-CXXFLAGS += -Isrc -Isrc/benchmark -Isrc/benchmark/implementations
 CXXFLAGS += -I/opt/homebrew/include
-
 LDFLAGS  := -L/opt/homebrew/lib
 LDLIBS   := -lxxhash
 
-# =====================
-# Directories
-# =====================
-SRC_DIR    := src
-BENCH_DIR  := $(SRC_DIR)/benchmark
-BUILD_DIR  := build
+SRC      := src/HLLPlusPlus.cpp
+OBJ      := build/HLLPlusPlus.o
 
-BIN_BENCH  := benchmark_runner
-BIN_HLL    := hllplusplusmain
+UNAME := $(shell uname)
+ifeq ($(UNAME), Darwin)
+    LIB := build/libbareboneshll.dylib
+    SHARED_FLAGS := -dynamiclib
+else
+    LIB := build/libbareboneshll.so
+    SHARED_FLAGS := -shared -fPIC
+endif
 
-# =====================
-# Benchmark sources
-# =====================
-BENCH_SOURCES := \
-	$(SRC_DIR)/HLLPlusPlus.cpp \
-	$(BENCH_DIR)/UUIDFactory.cpp \
-	$(BENCH_DIR)/RandomFactory.cpp \
-	$(BENCH_DIR)/SketchTestRunner.cpp \
-	$(BENCH_DIR)/main.cpp
+.PHONY: all clean
 
-BENCH_OBJECTS := $(BENCH_SOURCES:%.cpp=$(BUILD_DIR)/%.o)
+all: $(LIB)
 
-# =====================
-# Default target
-# =====================
-all: benchmark
+$(LIB): $(OBJ)
+	$(CXX) $(SHARED_FLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-# =====================
-# Benchmark target
-# =====================
-benchmark: $(BIN_BENCH)
+build/HLLPlusPlus.o: $(SRC) src/HLLPlusPlus.h | build
+	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $(SRC)
 
-$(BIN_BENCH): $(BENCH_OBJECTS)
-	$(CXX) $^ -o $@ $(LDFLAGS) $(LDLIBS)
+build:
+	mkdir -p build
 
-# =====================
-# HLL standalone target
-# =====================
-hll: $(BIN_HLL)
-
-$(BIN_HLL):
-	$(CXX) -std=c++17 -O3 -Wall -Wextra \
-		-Isrc -I/opt/homebrew/include \
-		-L/opt/homebrew/lib \
-		src/HLLPlusPlusMain.cpp \
-		src/HLLPlusPlus.cpp \
-		-lxxhash \
-		-o $(BIN_HLL)
-
-# =====================
-# Compile rule
-# =====================
-$(BUILD_DIR)/%.o: %.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# =====================
-# Clean
-# =====================
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_BENCH) $(BIN_HLL)
-
-.PHONY: all benchmark hll clean
+	rm -rf build
