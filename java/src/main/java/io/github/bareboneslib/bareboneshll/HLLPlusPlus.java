@@ -22,6 +22,7 @@ public class HLLPlusPlus {
     private int sparseListIndex;
 
     // below are constants
+    private static final byte VERSION = 0;
     private static final int TEMPORARY_LIST_SIZE = 5;
     private static final int MIN_P = 4;
     private static final int MAX_P = 18;
@@ -31,7 +32,7 @@ public class HLLPlusPlus {
     private static final int DEFAULT_R = 6;
     private static final int SPARSE_P_EXTRA_BITS = 4;
     private static final int DT_WIDTH = 32;
-    private static final int SERIALIZED_METADATA_FIELDS = 3;
+    private static final int SERIALIZED_METADATA_FIELDS = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte payload length
     private static final int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
     private static final double[][] empiricalRawEstimateData = {
             // precision 4
@@ -661,15 +662,22 @@ public class HLLPlusPlus {
     public byte[] serialize() {
         if(isSparse) {
             mergeTmpSparse();
-            int size = this.sparseSet.length * 4 + SERIALIZED_METADATA_FIELDS;
+            int sparseSetLength = this.sparseSet.length;
+            int bufferSize = sparseSetLength * 4;
+            int size = sparseSetLength * 4 + SERIALIZED_METADATA_FIELDS;
 
             byte[] buff = new byte[size];
             int j = 0;
+            buff[j++] = VERSION;
             buff[j++] = (byte) 0;
             buff[j++] = (byte) this.p;
             buff[j++] = (byte) this.r;
+            buff[j++] = (byte) ((bufferSize >> 24) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >> 16) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >> 8) & 0xFF);
+            buff[j++] = (byte) (bufferSize & 0xFF);
 
-            for(int i=0; i<this.sparseSet.length; i++) {
+            for(int i=0; i<sparseSetLength; i++) {
                 buff[j++] = (byte) ((this.sparseSet[i] >>> 24) & 0xFF);
                 buff[j++] = (byte) ((this.sparseSet[i] >>> 16) & 0xFF);
                 buff[j++] = (byte) ((this.sparseSet[i] >>> 8) & 0xFF);
@@ -679,12 +687,18 @@ public class HLLPlusPlus {
         }
         else {
             int size = m * 4 + SERIALIZED_METADATA_FIELDS;
-
             byte[] buff = new byte[size];
+            int bufferSize = m * 4;
+
             int j = 0;
+            buff[j++] = VERSION;
             buff[j++] = (byte) 1;
             buff[j++] = (byte) p;
             buff[j++] = (byte) r;
+            buff[j++] = (byte) ((bufferSize >> 24) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >> 16) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >> 8) & 0xFF);
+            buff[j++] = (byte) (bufferSize & 0xFF);
 
             for(int i=0; i<m; i++) {
                 buff[j++] = (byte) ((this.registers[i] >>> 24) & 0xFF);
@@ -697,17 +711,24 @@ public class HLLPlusPlus {
     }
 
     public static HLLPlusPlus deserialize(byte[] buff) {
-        if (buff == null || buff.length < 7)
-            throw new IllegalArgumentException("array is null or smaller than 6 bytes");
+        if (buff == null || buff.length < 4)
+            throw new IllegalArgumentException("array is null or smaller than 4 bytes");
+        if(buff[0] != VERSION)
+            throw new IllegalArgumentException("expected version: " + VERSION + " got version: " + buff[0]);
 
-        int j = 0;
+        int j = 1; // skipping version byte, already checked above
         int mode = buff[j++];
         int p = buff[j++];
         int r = buff[j++];
+        int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
+
+        if(hllBufferSize != (buff.length - SERIALIZED_METADATA_FIELDS))
+            throw new IllegalArgumentException("expected hll buffer length: " + hllBufferSize + " got: " + (buff.length - SERIALIZED_METADATA_FIELDS));
+
         HLLPlusPlus hll = new HLLPlusPlus(p, r);
 
         if(mode == 0) {
-            int n = (buff.length - SERIALIZED_METADATA_FIELDS) / 4;
+            int n = hllBufferSize / 4;
             int[] sparseSet = new int[n];
             for(int i=0; i<n; i++) {
                 sparseSet[i] = ((buff[j] & 0xFF) << 24) |
@@ -722,8 +743,8 @@ public class HLLPlusPlus {
             hll.isSparse = false;
             hll.sparseList = new int[0];
             hll.registers = new int[hll.m];
-            if((hll.m * 4) != (buff.length - SERIALIZED_METADATA_FIELDS))
-                throw new IllegalArgumentException("HLL buffer invalid size: " + (buff.length - SERIALIZED_METADATA_FIELDS) + " expected: " + hll.m);
+            if((hll.m * 4) != hllBufferSize)
+                throw new IllegalArgumentException("dense HLL buffer invalid size: " + (buff.length - SERIALIZED_METADATA_FIELDS) + " expected: " + hll.m);
 
             for(int i=0; i < hll.m; i++) {
                 hll.registers[i] = 
