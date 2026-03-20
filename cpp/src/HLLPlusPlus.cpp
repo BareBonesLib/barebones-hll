@@ -696,7 +696,7 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
 HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
     // initializeStatic();
     if (buff.size() < SERIALIZED_METADATA_FIELDS)
-        throw std::invalid_argument("buffer smaller than 4 bytes");
+        throw std::invalid_argument("buffer smaller than " + std::to_string(SERIALIZED_METADATA_FIELDS) + " bytes");
     if(buff[0] != VERSION)
         throw std::invalid_argument("expected version: " + std::to_string(VERSION) + " got version: " + std::to_string(buff[0]));
     

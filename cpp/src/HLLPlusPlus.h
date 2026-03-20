@@ -39,7 +39,7 @@ private:
     static const int DEFAULT_R = 6;
     static const int SPARSE_P_EXTRA_BITS = 4;
     static const int DT_WIDTH = 32;
-    static const int SERIALIZED_METADATA_FIELDS = 3;
+    static const int SERIALIZED_METADATA_FIELDS = 8;  // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte payload length
     static const int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
     static std::vector<std::vector<double>> empiricalRawEstimateData;
     static std::vector<std::vector<double>> empiricalBiasData;

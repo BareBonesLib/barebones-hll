@@ -712,7 +712,7 @@ public class HLLPlusPlus {
 
     public static HLLPlusPlus deserialize(byte[] buff) {
         if (buff == null || buff.length < 4)
-            throw new IllegalArgumentException("array is null or smaller than 4 bytes");
+            throw new IllegalArgumentException("array is null or smaller than " + SERIALIZED_METADATA_FIELDS + " bytes");
         if(buff[0] != VERSION)
             throw new IllegalArgumentException("expected version: " + VERSION + " got version: " + buff[0]);
 
