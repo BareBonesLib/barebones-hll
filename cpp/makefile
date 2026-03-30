@@ -11,9 +11,13 @@ ifeq ($(UNAME), Darwin)
     SHARED_FLAGS := -dynamiclib
     CXXFLAGS     += -I/opt/homebrew/include
     LDFLAGS      := -L/opt/homebrew/lib
+    INSTALL_LIB  := /usr/local/lib
+    INSTALL_INC  := /usr/local/include/bareboneshll
 else
     LIB          := build/libbareboneshll.so
     SHARED_FLAGS := -shared -fPIC
+    INSTALL_LIB  := /usr/local/lib
+    INSTALL_INC  := /usr/local/include/bareboneshll
     ifdef XXHASH_PREFIX
         CXXFLAGS += -I$(XXHASH_PREFIX)/include
         LDFLAGS  := -L$(XXHASH_PREFIX)/lib
@@ -32,7 +36,7 @@ ifeq ($(shell echo "\#include <xxhash.h>" | $(CXX) $(CXXFLAGS) -x c++ -fsyntax-o
     $(warning   or:     make XXHASH_PREFIX=/path/to/xxhash)
 endif
 
-.PHONY: all clean
+.PHONY: all install uninstall clean
 
 all: $(LIB)
 
@@ -44,6 +48,21 @@ build/HLLPlusPlus.o: $(SRC) src/HLLPlusPlus.h | build
 
 build:
 	mkdir -p build
+
+install: $(LIB)
+	mkdir -p $(INSTALL_LIB) $(INSTALL_INC)
+	cp $(LIB) $(INSTALL_LIB)/
+	cp src/HLLPlusPlus.h $(INSTALL_INC)/
+	@echo "Installed lib  → $(INSTALL_LIB)/$(notdir $(LIB))"
+	@echo "Installed header → $(INSTALL_INC)/HLLPlusPlus.h"
+ifeq ($(UNAME), Darwin)
+	install_name_tool -id $(INSTALL_LIB)/$(notdir $(LIB)) $(INSTALL_LIB)/$(notdir $(LIB))
+endif
+
+uninstall:
+	rm -f  $(INSTALL_LIB)/$(notdir $(LIB))
+	rm -rf $(INSTALL_INC)
+	@echo "Uninstalled"
 
 clean:
 	rm -rf build

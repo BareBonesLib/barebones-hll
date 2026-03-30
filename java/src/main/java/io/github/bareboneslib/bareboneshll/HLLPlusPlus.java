@@ -672,9 +672,9 @@ public class HLLPlusPlus {
             buff[j++] = (byte) 0;
             buff[j++] = (byte) this.p;
             buff[j++] = (byte) this.r;
-            buff[j++] = (byte) ((bufferSize >> 24) & 0xFF);
-            buff[j++] = (byte) ((bufferSize >> 16) & 0xFF);
-            buff[j++] = (byte) ((bufferSize >> 8) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >>> 24) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >>> 16) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >>> 8) & 0xFF);
             buff[j++] = (byte) (bufferSize & 0xFF);
 
             for(int i=0; i<sparseSetLength; i++) {
@@ -695,9 +695,9 @@ public class HLLPlusPlus {
             buff[j++] = (byte) 1;
             buff[j++] = (byte) p;
             buff[j++] = (byte) r;
-            buff[j++] = (byte) ((bufferSize >> 24) & 0xFF);
-            buff[j++] = (byte) ((bufferSize >> 16) & 0xFF);
-            buff[j++] = (byte) ((bufferSize >> 8) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >>> 24) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >>> 16) & 0xFF);
+            buff[j++] = (byte) ((bufferSize >>> 8) & 0xFF);
             buff[j++] = (byte) (bufferSize & 0xFF);
 
             for(int i=0; i<m; i++) {
@@ -711,7 +711,7 @@ public class HLLPlusPlus {
     }
 
     public static HLLPlusPlus deserialize(byte[] buff) {
-        if (buff == null || buff.length < 4)
+        if (buff == null || buff.length < SERIALIZED_METADATA_FIELDS)
             throw new IllegalArgumentException("array is null or smaller than " + SERIALIZED_METADATA_FIELDS + " bytes");
         if(buff[0] != VERSION)
             throw new IllegalArgumentException("expected version: " + VERSION + " got version: " + buff[0]);
