@@ -7,11 +7,18 @@ public class HLLPlusPlus {
     private final int p;
     private final int r;
     private int[] registers;
-    private boolean isSparse;
+    private enum State {
+        SPARSE,
+        DENSE
+    };
+    private State state;
+    private int randomCount;
     private int[] sparseSet;
     private int[] sparseList;
 
     // below variables are derived
+    private final double universeSizeN = 2_000_000_000;
+    private final int universeSizeM = 29_700_000;
     private final int m;
     private final int sp;
     private final int maxRegisterValue;
@@ -30,7 +37,7 @@ public class HLLPlusPlus {
     private static final int SPARSE_P_EXTRA_BITS = 4;
     private static final double POW_2_32 = Math.pow(2, 32);
     private static final int DT_WIDTH = 32;
-    private static final int SERIALIZED_METADATA_FIELDS = 3;
+    private static final int SERIALIZED_METADATA_FIELDS = 3 + 4;
     private static final double[] PRE_POW_2_K = new double[64]; // as largest r = 6, the max value of a register can be at max 63
     static {
         for(int i = 0; i< PRE_POW_2_K.length; i++) {
@@ -64,7 +71,7 @@ public class HLLPlusPlus {
         this.sparseList = new int[TEMPORARY_LIST_SIZE];
         this.sparseSet = new int[0];
         this.sparseListIndex = 0;
-        this.isSparse = true;
+        this.state = State.SPARSE;
         this.conversionThreshold = m;
         this.sparseSetIndexOffset = DT_WIDTH - sp;
     }
@@ -72,7 +79,7 @@ public class HLLPlusPlus {
     // read r bits of the registers from a specified bit location and return it as a byte.
     // this is for debugging purposes only
     private byte readRegister(int index) {
-        if(isSparse) {
+        if(this.state == State.SPARSE) {
             mergeTmpSparse();
             int result = 0;
             for(int i = 0; i<sparseSet.length; i++) {
@@ -167,8 +174,24 @@ public class HLLPlusPlus {
         this.sparseListIndex = 0;
     }
 
+    public void addRandom(int count) {
+        this.randomCount = addRandomFormula(this.randomCount, count, universeSizeM, universeSizeM);
+    }
+
+    private int addRandomFormula(double X, double Y, double universeSize) {
+        return (int) Math.round(X + (universeSize - X) * (1.0 - Math.pow((1.0 - 1.0 / universeSize), Y)));
+    }
+
+    private int addRandomDistinctFormula(double X, double Y, double universeSize) {
+        return (int) Math.round(X + Y - ((X * Y) / universeSize));
+    }
+
+    private int addRandomFormula(double X, double Y, double XUniverse, double YUniverse) {
+        return (int) Math.round(X + YUniverse * (1.0 - Math.pow((1.0 - 1.0 / YUniverse), Y)) * (1.0 - X / XUniverse));
+    }
+
     public void add(long value) {
-        if(isSparse) {
+        if(this.state == State.SPARSE) {
             int registerIndex = (int) (value >>> (64 - sp));
             value = value | (1L << (64 - sp));
             int cnt = Long.numberOfTrailingZeros(value) + 1;
@@ -183,7 +206,7 @@ public class HLLPlusPlus {
                     convertToNormal();
             }
         }
-        else {
+        if(this.state == State.DENSE) {
             int registerIndex = (int) (value >>> (64 - p));
             value = value | (1L << (64 - p));
             int cnt = Long.numberOfTrailingZeros(value) + 1;
@@ -216,7 +239,7 @@ public class HLLPlusPlus {
 
         this.sparseList = new int[0];
         this.sparseSet = new int[0];
-        this.isSparse = false;
+        this.state = State.DENSE;
     }
 
     private void sparseMerge(HLLPlusPlus other) {
@@ -340,8 +363,10 @@ public class HLLPlusPlus {
             this.mergeTmpSparse();
         if(other.sparseListIndex > 0)
             other.mergeTmpSparse();
+        if(other.randomCount > 0)
+            this.randomCount = addRandomDistinctFormula(this.randomCount, other.randomCount, universeSizeM);
 
-        int state = (isSparse ? 0 : 1) | (other.isSparse ? 0 : 2);
+        int state = ((this.state == State.SPARSE) ? 0 : 1) | ((other.state == State.SPARSE) ? 0 : 2);
         switch (state) {
             case 0: // both sparse
                 sparseMerge(other);
@@ -471,11 +496,14 @@ public class HLLPlusPlus {
 
     public long estimate() {
         double M = totalRegisters;
-        if(isSparse) {
+        if(this.state == State.SPARSE) {
             if(this.sparseListIndex > 0)
                 mergeTmpSparse();
             double SM = (1 << sp);
-            return Math.round(SM * Math.log(SM / (SM - this.sparseSet.length)));
+            long sparseEstimate = Math.round(SM * Math.log(SM / (SM - this.sparseSet.length)));
+            if(this.randomCount > 0)
+                sparseEstimate = addRandomDistinctFormula((int) sparseEstimate, this.randomCount, universeSizeN);
+            return sparseEstimate;
         }
 
         double[] results = new double[2];
@@ -502,6 +530,9 @@ public class HLLPlusPlus {
             rawEstimate = -POW_2_32 * Math.log(1 - rawEstimate / POW_2_32);
         }
 
+        if(this.randomCount > 0)
+            rawEstimate = addRandomDistinctFormula((int) rawEstimate, this.randomCount, universeSizeN);
+
         return (long) rawEstimate;
     }
 
@@ -519,7 +550,7 @@ public class HLLPlusPlus {
     }
 
     public byte[] serialize() {
-        if(isSparse) {
+        if(this.state == State.SPARSE) {
             mergeTmpSparse();
             int size = this.sparseSet.length * 4 + SERIALIZED_METADATA_FIELDS;
 
@@ -528,6 +559,10 @@ public class HLLPlusPlus {
             buff[j++] = (byte) 0;
             buff[j++] = (byte) this.p;
             buff[j++] = (byte) this.r;
+            buff[j++] = (byte) (this.randomCount >>> 24 & 0xFF);
+            buff[j++] = (byte) (this.randomCount >>> 16 & 0xFF);
+            buff[j++] = (byte) (this.randomCount >>> 8 & 0xFF);
+            buff[j++] = (byte) (this.randomCount & 0xFF);
 
             for(int i=0; i<this.sparseSet.length; i++) {
                 buff[j++] = (byte) ((this.sparseSet[i] >>> 24) & 0xFF);
@@ -537,7 +572,7 @@ public class HLLPlusPlus {
             }
             return buff;
         }
-        else {
+        if(this.state == State.DENSE) {
             int size = m * 4 + SERIALIZED_METADATA_FIELDS;
 
             byte[] buff = new byte[size];
@@ -545,6 +580,10 @@ public class HLLPlusPlus {
             buff[j++] = (byte) 1;
             buff[j++] = (byte) p;
             buff[j++] = (byte) r;
+            buff[j++] = (byte) (this.randomCount >>> 24 & 0xFF);
+            buff[j++] = (byte) (this.randomCount >>> 16 & 0xFF);
+            buff[j++] = (byte) (this.randomCount >>> 8 & 0xFF);
+            buff[j++] = (byte) (this.randomCount & 0xFF);
 
             for(int i=0; i<m; i++) {
                 buff[j++] = (byte) ((this.registers[i] >>> 24) & 0xFF);
@@ -554,6 +593,7 @@ public class HLLPlusPlus {
             }
             return buff;
         }
+        return null;
     }
 
     public static HLLPlusPlus deserialize(byte[] buff) {
@@ -564,7 +604,11 @@ public class HLLPlusPlus {
         int mode = buff[j++];
         int p = buff[j++];
         int r = buff[j++];
+        int randomCount = ((buff[j] & 0xFF) << 24) | ((buff[j + 1] & 0xFF) << 16) | ((buff[j + 2] & 0xFF) << 8) | (buff[j + 3] & 0xFF);
+        j += 4;
+
         HLLPlusPlus hll = new HLLPlusPlus(p, r);
+        hll.randomCount = randomCount;
 
         if(mode == 0) {
             int n = (buff.length - SERIALIZED_METADATA_FIELDS) / 4;
@@ -578,8 +622,8 @@ public class HLLPlusPlus {
             }
             hll.sparseSet = sparseSet;
         }
-        else {
-            hll.isSparse = false;
+        if(mode == 1) {
+            hll.state = State.DENSE;
             hll.sparseList = new int[0];
             hll.registers = new int[hll.m];
             if((hll.m * 4) != (buff.length - SERIALIZED_METADATA_FIELDS))
