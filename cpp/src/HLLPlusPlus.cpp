@@ -659,10 +659,10 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
 
         for (int i = 0; i < sparseSet.size(); i++) {
             uint32_t v = sparseSet[i];
-            buff[j] = (v >> 24) & 0xFF;
-            buff[j+1] = (v >> 16) & 0xFF;
-            buff[j+2] = (v >> 8) & 0xFF;
-            buff[j+3] = v & 0xFF;
+            if(BYTE_ORDER == LITTLE_ENDIAN) {
+                v = __builtin_bswap32(v); // swap to big-endian
+            }
+            std::memcpy(&buff[j], &v, sizeof(uint32_t));
             j+=4;
         }
         return buff;
@@ -683,10 +683,10 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
 
         for (int i = 0; i < m; i++) {
             uint32_t v = registers[i];
-            buff[j] = (v >> 24) & 0xFF;
-            buff[j+1] = (v >> 16) & 0xFF;
-            buff[j+2] = (v >> 8) & 0xFF;
-            buff[j+3] = v & 0xFF;
+            if(BYTE_ORDER == LITTLE_ENDIAN) {
+                v = __builtin_bswap32(v); // swap to big-endian
+            }
+            std::memcpy(&buff[j], &v, sizeof(uint32_t));
             j+=4;
         }
         return buff;
@@ -716,10 +716,10 @@ HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
         hll->sparseSet = std::vector<uint32_t>(n);
         for (int i = 0; i < n; i++) {
             hll->sparseSet[i] =
-                (uint32_t(buff[j]) << 24) |
-                (uint32_t(buff[j + 1]) << 16) |
-                (uint32_t(buff[j + 2]) << 8) |
-                uint32_t(buff[j + 3]);
+                (uint8_t(buff[j]) << 24) |
+                (uint8_t(buff[j + 1]) << 16) |
+                (uint8_t(buff[j + 2]) << 8) |
+                uint8_t(buff[j + 3]);
             j += 4;
         }
     } else {
@@ -730,10 +730,10 @@ HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
 
         for (int i = 0; i < hll->m; i++) {
             hll->registers[i] =
-                (uint32_t(buff[j]) << 24) |
-                (uint32_t(buff[j + 1]) << 16) |
-                (uint32_t(buff[j + 2]) << 8) |
-                uint32_t(buff[j + 3]);
+                (uint8_t(buff[j]) << 24) |
+                (uint8_t(buff[j + 1]) << 16) |
+                (uint8_t(buff[j + 2]) << 8) |
+                uint8_t(buff[j + 3]);
             j += 4;
         }
     }
