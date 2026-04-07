@@ -135,11 +135,18 @@ public:
 
     int64_t estimate();
 
-    std::vector<uint8_t> serialize();
+    template <typename Container = std::vector<uint8_t>>
+    Container serialize();
 
     static HLLPlusPlus deserialize(const std::vector<uint8_t>&);
 
+    static HLLPlusPlus deserialize(const unsigned char *, size_t);
+
     void debugInfo();
 };
+
+// explicit instantiation declarations
+extern template std::vector<uint8_t> HLLPlusPlus::serialize<std::vector<uint8_t>>();
+extern template std::string HLLPlusPlus::serialize<std::string>();
 
 #endif

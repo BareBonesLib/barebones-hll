@@ -48,10 +48,9 @@ static json do_serialize(const json& cmd) {
 
 static json do_deserialize(const json& cmd) {
     auto bytes = b64_decode(cmd.at("bytes").get<std::string>());
-    HLLPlusPlus* hll  = HLLPlusPlus::deserialize(bytes);
-    long long est = hll->estimate();
+    HLLPlusPlus hll  = HLLPlusPlus::deserialize(bytes);
+    long long est = hll.estimate();
 
-    delete hll;
     return {{"estimate", est}};
 }
 
@@ -59,20 +58,17 @@ static json do_merge(const json& cmd) {
     auto sketches = cmd.at("sketches");
     if (sketches.empty()) throw std::runtime_error("no sketches provided");
 
-    auto* base = HLLPlusPlus::deserialize(b64_decode(sketches[0].get<std::string>()));
+    auto base = HLLPlusPlus::deserialize(b64_decode(sketches[0].get<std::string>()));
 
     for (size_t i = 1; i < sketches.size(); i++) {
-        auto* other = HLLPlusPlus::deserialize(b64_decode(sketches[i].get<std::string>()));
-        if (!base->merge(other)) {
-            delete other; delete base;
+        auto other = HLLPlusPlus::deserialize(b64_decode(sketches[i].get<std::string>()));
+        if (!base.merge(other)) {
             throw std::runtime_error("incompatible sketches at index " + std::to_string(i));
         }
-        delete other;
     }
 
-    auto bytes    = base->serialize();
-    long long est = base->estimate();
-    delete base;
+    auto bytes    = base.serialize();
+    long long est = base.estimate();
 
     return {
         {"bytes",    b64_encode(bytes)},

@@ -636,14 +636,15 @@ double HLLPlusPlus::estimateBias(double E) {
     return averageBiasCorrection;
 }
 
-std::vector<uint8_t> HLLPlusPlus::serialize() {
+template <typename Container>
+Container HLLPlusPlus::serialize() {
     if (isSparse) {
         mergeTmpSparse();
         int sparseSetLength = this->sparseSet.size();
         int bufferSize = sparseSetLength * 4;
         int size = sparseSetLength * 4 + SERIALIZED_METADATA_FIELDS;
 
-        std::vector<uint8_t> buff(size, 0x00);
+        Container buff(size, 0x00);
         int j = 0;
 
         buff[j++] = VERSION;
@@ -655,21 +656,21 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
         buff[j++] = static_cast<uint8_t>((bufferSize >> 8) & 0xFF);
         buff[j++] = static_cast<uint8_t>(bufferSize & 0xFF);
 
-        for (int i = 0; i < sparseSet.size(); i++) {
+        for (int i = 0; i < sparseSetLength; i++) {
             uint32_t v = sparseSet[i];
-            if(BYTE_ORDER == LITTLE_ENDIAN) {
+            if(BYTE_ORDER == LITTLE_ENDIAN)
                 v = __builtin_bswap32(v); // swap to big-endian
-            }
             std::memcpy(&buff[j], &v, sizeof(uint32_t));
-            j+=4;
+            j += 4;
         }
         return buff;
     } else {
-        int size = m * 4 + SERIALIZED_METADATA_FIELDS;
-        std::vector<uint8_t> buff(size, 0x00);
         int bufferSize = m * 4;
+        int size = bufferSize + SERIALIZED_METADATA_FIELDS;
 
+        Container buff(size, 0x00);
         int j = 0;
+
         buff[j++] = VERSION;
         buff[j++] = 1;
         buff[j++] = static_cast<uint8_t>(p);
@@ -681,19 +682,21 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
 
         for (int i = 0; i < m; i++) {
             uint32_t v = registers[i];
-            if(BYTE_ORDER == LITTLE_ENDIAN) {
+            if (BYTE_ORDER == LITTLE_ENDIAN)
                 v = __builtin_bswap32(v); // swap to big-endian
-            }
             std::memcpy(&buff[j], &v, sizeof(uint32_t));
-            j+=4;
+            j += 4;
         }
         return buff;
     }
 }
 
 HLLPlusPlus HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
-    // initializeStatic();
-    if (buff.size() < SERIALIZED_METADATA_FIELDS)
+    return deserialize(buff.data(), buff.size());
+}
+
+HLLPlusPlus HLLPlusPlus::deserialize(const unsigned char * buff, size_t buffSize) {
+    if (buffSize < SERIALIZED_METADATA_FIELDS)
         throw std::invalid_argument("buffer smaller than " + std::to_string(SERIALIZED_METADATA_FIELDS) + " bytes");
     if(buff[0] != VERSION)
         throw std::invalid_argument("expected version: " + std::to_string(VERSION) + " got version: " + std::to_string(buff[0]));
@@ -704,8 +707,8 @@ HLLPlusPlus HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
     int r = buff[j++];
     int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
 
-    if(hllBufferSize != (buff.size() - SERIALIZED_METADATA_FIELDS))
-        throw new std::invalid_argument("expeceted hll buffer length" + std::to_string(hllBufferSize) + " got: " + std::to_string(buff.size() - SERIALIZED_METADATA_FIELDS));
+    if(hllBufferSize != (buffSize - SERIALIZED_METADATA_FIELDS))
+        throw new std::invalid_argument("expeceted hll buffer length" + std::to_string(hllBufferSize) + " got: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS));
 
     HLLPlusPlus hll(p, r);
 
@@ -724,7 +727,7 @@ HLLPlusPlus HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
         hll.isSparse = false;
         hll.registers = std::vector<uint32_t>(hll.m);
         if ((hll.m * 4) != hllBufferSize)
-            throw std::invalid_argument("dense HLL buffer invalid size: " + std::to_string(buff.size() - SERIALIZED_METADATA_FIELDS) + " got: " + std::to_string(hll.m));
+            throw std::invalid_argument("dense HLL buffer invalid size: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS) + " got: " + std::to_string(hll.m));
 
         for (int i = 0; i < hll.m; i++) {
             hll.registers[i] =
@@ -739,6 +742,11 @@ HLLPlusPlus HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
     return hll;
 }
 
+
 void HLLPlusPlus::debugInfo() {
     // Debug function implementation (similar to Java version)
 }
+
+// explicit instantiation definitions — tells the compiler to generate these two
+template std::vector<uint8_t> HLLPlusPlus::serialize<std::vector<uint8_t>>();
+template std::string HLLPlusPlus::serialize<std::string>();
