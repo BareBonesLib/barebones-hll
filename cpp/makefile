@@ -50,16 +50,18 @@ build:
 	mkdir -p build
 
 install: $(LIB)
+	@[ "$$(id -u)" = "0" ] || { echo "Error: 'make install' must be run as root (use sudo)"; exit 1; }
 	mkdir -p $(INSTALL_LIB) $(INSTALL_INC)
 	cp $(LIB) $(INSTALL_LIB)/
 	cp src/HLLPlusPlus.h $(INSTALL_INC)/
-	@echo "Installed lib  → $(INSTALL_LIB)/$(notdir $(LIB))"
+	@echo "Installed lib    → $(INSTALL_LIB)/$(notdir $(LIB))"
 	@echo "Installed header → $(INSTALL_INC)/HLLPlusPlus.h"
 ifeq ($(UNAME), Darwin)
 	install_name_tool -id $(INSTALL_LIB)/$(notdir $(LIB)) $(INSTALL_LIB)/$(notdir $(LIB))
 endif
 
 uninstall:
+	@[ "$$(id -u)" = "0" ] || { echo "Error: 'make uninstall' must be run as root (use sudo)"; exit 1; }
 	rm -f  $(INSTALL_LIB)/$(notdir $(LIB))
 	rm -rf $(INSTALL_INC)
 	@echo "Uninstalled"
