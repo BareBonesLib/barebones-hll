@@ -213,9 +213,9 @@ void HLLPlusPlus::convertToNormal() {
     this->isSparse = false;
 }
 
-void HLLPlusPlus::sparseMerge(HLLPlusPlus* other) {
+void HLLPlusPlus::sparseMerge(HLLPlusPlus other) {
     std::vector<uint32_t> &a = this->sparseSet;
-    std::vector<uint32_t> &b = other->sparseSet;
+    std::vector<uint32_t> &b = other.sparseSet;
 
     std::vector<uint32_t> newSparseSet(a.size() + b.size());
 
@@ -265,14 +265,14 @@ void HLLPlusPlus::sparseMerge(HLLPlusPlus* other) {
     // }
 }
 
-void HLLPlusPlus::merge4(HLLPlusPlus* other) {
+void HLLPlusPlus::merge4(HLLPlusPlus other) {
     const uint32_t MASK = 0xf;
     const int REGISTERS_PER_BUCKET = 8;
     const int REGISTER_SIZE = 4;
     for(int i = 0; i < m; ++i) {
         uint32_t word = 0;
         uint32_t thisBucket = this->registers[i];
-        uint32_t otherBucket = other->registers[i];
+        uint32_t otherBucket = other.registers[i];
         for(int j = 0; j < REGISTERS_PER_BUCKET; ++j) {
             uint32_t mask = MASK << (REGISTER_SIZE * j);
             uint32_t thisRawVal = thisBucket & mask;
@@ -283,14 +283,14 @@ void HLLPlusPlus::merge4(HLLPlusPlus* other) {
     }
 }
 
-void HLLPlusPlus::merge5(HLLPlusPlus* other) {
+void HLLPlusPlus::merge5(HLLPlusPlus other) {
     const uint32_t MASK = 0x1f;
     const int REGISTERS_PER_BUCKET = 6;
     const int REGISTER_SIZE = 5;
     for(int i = 0; i < m; ++i) {
         uint32_t word = 0;
         uint32_t thisBucket = this->registers[i];
-        uint32_t otherBucket = other->registers[i];
+        uint32_t otherBucket = other.registers[i];
         for(int j = 0; j < REGISTERS_PER_BUCKET; ++j) {
             uint32_t mask = MASK << (REGISTER_SIZE * j);
             uint32_t thisRawVal = thisBucket & mask;
@@ -301,14 +301,14 @@ void HLLPlusPlus::merge5(HLLPlusPlus* other) {
     }
 }
 
-void HLLPlusPlus::merge6(HLLPlusPlus* other) {
+void HLLPlusPlus::merge6(HLLPlusPlus other) {
     const uint32_t MASK = 0x3f;
     const int REGISTERS_PER_BUCKET = 5;
     const int REGISTER_SIZE = 6;
     for(int i = 0; i < m; ++i) {
         uint32_t word = 0;
         uint32_t thisBucket = this->registers[i];
-        uint32_t otherBucket = other->registers[i];
+        uint32_t otherBucket = other.registers[i];
         for(int j = 0; j < REGISTERS_PER_BUCKET; ++j) {
             uint32_t mask = MASK << (REGISTER_SIZE * j);
             uint32_t thisRawVal = thisBucket & mask;
@@ -319,7 +319,7 @@ void HLLPlusPlus::merge6(HLLPlusPlus* other) {
     }
 }
 
-void HLLPlusPlus::normalMerge(HLLPlusPlus* other) {
+void HLLPlusPlus::normalMerge(HLLPlusPlus other) {
     switch(r) {
         case 4: merge4(other);
             break;
@@ -507,18 +507,16 @@ void HLLPlusPlus::add(uint64_t value) {
     }
 }
 
-bool HLLPlusPlus::merge(HLLPlusPlus* other) {
-    if (other == nullptr)
-        return false;
-    if (this->p != other->p || this->r != other->r)
+bool HLLPlusPlus::merge(HLLPlusPlus other) {
+    if (this->p != other.p || this->r != other.r)
         return false;
 
     if(this->sparseListIndex > 0)
         this->mergeTmpSparse();
-    if(other->sparseListIndex > 0)
-        other->mergeTmpSparse();
+    if(other.sparseListIndex > 0)
+        other.mergeTmpSparse();
 
-    int state = (isSparse ? 0 : 1) | (other->isSparse ? 0 : 2);
+    int state = (isSparse ? 0 : 1) | (other.isSparse ? 0 : 2);
     switch (state) {
         case 0: // both sparse
             sparseMerge(other);
@@ -526,9 +524,9 @@ bool HLLPlusPlus::merge(HLLPlusPlus* other) {
                 this->convertToNormal();
             break;
         case 1: // this normal, other sparse
-            for(int i = 0; i < other->sparseSet.size(); i++) {
-                uint32_t idx = other->sparseSet[i] >> (sparseSetIndexOffset + SPARSE_P_EXTRA_BITS);
-                uint32_t val = other->sparseSet[i] & maxRegisterValue;
+            for(int i = 0; i < other.sparseSet.size(); i++) {
+                uint32_t idx = other.sparseSet[i] >> (sparseSetIndexOffset + SPARSE_P_EXTRA_BITS);
+                uint32_t val = other.sparseSet[i] & maxRegisterValue;
                 int bucketIndex = idx / regPerDatatype;
                 int registerOffset = (regPerDatatype - idx % regPerDatatype - 1) * r;
 
@@ -638,14 +636,15 @@ double HLLPlusPlus::estimateBias(double E) {
     return averageBiasCorrection;
 }
 
-std::vector<uint8_t> HLLPlusPlus::serialize() {
+template <typename Container>
+Container HLLPlusPlus::serialize() {
     if (isSparse) {
         mergeTmpSparse();
         int sparseSetLength = this->sparseSet.size();
         int bufferSize = sparseSetLength * 4;
         int size = sparseSetLength * 4 + SERIALIZED_METADATA_FIELDS;
 
-        std::vector<uint8_t> buff(size, 0x00);
+        Container buff(size, 0x00);
         int j = 0;
 
         buff[j++] = VERSION;
@@ -657,21 +656,21 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
         buff[j++] = static_cast<uint8_t>((bufferSize >> 8) & 0xFF);
         buff[j++] = static_cast<uint8_t>(bufferSize & 0xFF);
 
-        for (int i = 0; i < sparseSet.size(); i++) {
+        for (int i = 0; i < sparseSetLength; i++) {
             uint32_t v = sparseSet[i];
-            if(BYTE_ORDER == LITTLE_ENDIAN) {
+            if(BYTE_ORDER == LITTLE_ENDIAN)
                 v = __builtin_bswap32(v); // swap to big-endian
-            }
             std::memcpy(&buff[j], &v, sizeof(uint32_t));
-            j+=4;
+            j += 4;
         }
         return buff;
     } else {
-        int size = m * 4 + SERIALIZED_METADATA_FIELDS;
-        std::vector<uint8_t> buff(size, 0x00);
         int bufferSize = m * 4;
+        int size = bufferSize + SERIALIZED_METADATA_FIELDS;
 
+        Container buff(size, 0x00);
         int j = 0;
+
         buff[j++] = VERSION;
         buff[j++] = 1;
         buff[j++] = static_cast<uint8_t>(p);
@@ -683,19 +682,21 @@ std::vector<uint8_t> HLLPlusPlus::serialize() {
 
         for (int i = 0; i < m; i++) {
             uint32_t v = registers[i];
-            if(BYTE_ORDER == LITTLE_ENDIAN) {
+            if (BYTE_ORDER == LITTLE_ENDIAN)
                 v = __builtin_bswap32(v); // swap to big-endian
-            }
             std::memcpy(&buff[j], &v, sizeof(uint32_t));
-            j+=4;
+            j += 4;
         }
         return buff;
     }
 }
 
-HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
-    // initializeStatic();
-    if (buff.size() < SERIALIZED_METADATA_FIELDS)
+HLLPlusPlus HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
+    return deserialize(buff.data(), buff.size());
+}
+
+HLLPlusPlus HLLPlusPlus::deserialize(const unsigned char * buff, size_t buffSize) {
+    if (buffSize < SERIALIZED_METADATA_FIELDS)
         throw std::invalid_argument("buffer smaller than " + std::to_string(SERIALIZED_METADATA_FIELDS) + " bytes");
     if(buff[0] != VERSION)
         throw std::invalid_argument("expected version: " + std::to_string(VERSION) + " got version: " + std::to_string(buff[0]));
@@ -706,16 +707,16 @@ HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
     int r = buff[j++];
     int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
 
-    if(hllBufferSize != (buff.size() - SERIALIZED_METADATA_FIELDS))
-        throw new std::invalid_argument("expeceted hll buffer length" + std::to_string(hllBufferSize) + " got: " + std::to_string(buff.size() - SERIALIZED_METADATA_FIELDS));
+    if(hllBufferSize != (buffSize - SERIALIZED_METADATA_FIELDS))
+        throw new std::invalid_argument("expeceted hll buffer length" + std::to_string(hllBufferSize) + " got: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS));
 
-    HLLPlusPlus* hll = new HLLPlusPlus(p, r);
+    HLLPlusPlus hll(p, r);
 
     if (mode == 0) {
         int n = hllBufferSize / 4;
-        hll->sparseSet = std::vector<uint32_t>(n);
+        hll.sparseSet = std::vector<uint32_t>(n);
         for (int i = 0; i < n; i++) {
-            hll->sparseSet[i] =
+            hll.sparseSet[i] =
                 (uint8_t(buff[j]) << 24) |
                 (uint8_t(buff[j + 1]) << 16) |
                 (uint8_t(buff[j + 2]) << 8) |
@@ -723,13 +724,13 @@ HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
             j += 4;
         }
     } else {
-        hll->isSparse = false;
-        hll->registers = std::vector<uint32_t>(hll->m);
-        if ((hll->m * 4) != hllBufferSize)
-            throw std::invalid_argument("dense HLL buffer invalid size: " + std::to_string(buff.size() - SERIALIZED_METADATA_FIELDS) + " got: " + std::to_string(hll->m));
+        hll.isSparse = false;
+        hll.registers = std::vector<uint32_t>(hll.m);
+        if ((hll.m * 4) != hllBufferSize)
+            throw std::invalid_argument("dense HLL buffer invalid size: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS) + " got: " + std::to_string(hll.m));
 
-        for (int i = 0; i < hll->m; i++) {
-            hll->registers[i] =
+        for (int i = 0; i < hll.m; i++) {
+            hll.registers[i] =
                 (uint8_t(buff[j]) << 24) |
                 (uint8_t(buff[j + 1]) << 16) |
                 (uint8_t(buff[j + 2]) << 8) |
@@ -741,6 +742,11 @@ HLLPlusPlus* HLLPlusPlus::deserialize(const std::vector<uint8_t>& buff) {
     return hll;
 }
 
+
 void HLLPlusPlus::debugInfo() {
     // Debug function implementation (similar to Java version)
 }
+
+// explicit instantiation definitions — tells the compiler to generate these two
+template std::vector<uint8_t> HLLPlusPlus::serialize<std::vector<uint8_t>>();
+template std::string HLLPlusPlus::serialize<std::string>();
