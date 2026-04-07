@@ -104,10 +104,8 @@ TEST(Accuracy, HighPrecision_p16) {
 TEST(Serde, EmptySketch_RoundtripPreservesEstimate) {
     HLLPlusPlus original(12, 6);
     auto bytes = original.serialize();
-    auto* restored = HLLPlusPlus::deserialize(bytes);
-    ASSERT_NE(nullptr, restored);
-    EXPECT_EQ(original.estimate(), restored->estimate());
-    delete restored;
+    auto restored = HLLPlusPlus::deserialize(bytes);
+    EXPECT_EQ(original.estimate(), restored.estimate());
 }
 
 TEST(Serde, PopulatedSketch_RoundtripPreservesEstimate) {
@@ -115,10 +113,8 @@ TEST(Serde, PopulatedSketch_RoundtripPreservesEstimate) {
     addRange(original, 0, 100'000);
 
     auto bytes = original.serialize();
-    auto* restored = HLLPlusPlus::deserialize(bytes);
-    ASSERT_NE(nullptr, restored);
-    EXPECT_EQ(original.estimate(), restored->estimate());
-    delete restored;
+    auto restored = HLLPlusPlus::deserialize(bytes);
+    EXPECT_EQ(original.estimate(), restored.estimate());
 }
 
 TEST(Serde, SparseSketch_RoundtripPreservesEstimate) {
@@ -127,10 +123,8 @@ TEST(Serde, SparseSketch_RoundtripPreservesEstimate) {
     addRange(original, 0, 100);
 
     auto bytes = original.serialize();
-    auto* restored = HLLPlusPlus::deserialize(bytes);
-    ASSERT_NE(nullptr, restored);
-    EXPECT_EQ(original.estimate(), restored->estimate());
-    delete restored;
+    auto restored = HLLPlusPlus::deserialize(bytes);
+    EXPECT_EQ(original.estimate(), restored.estimate());
 }
 
 TEST(Serde, CorruptedBytes_Throws) {
@@ -147,7 +141,7 @@ TEST(Merge, DisjointSets_ApproximatesUnion) {
     addRange(a, 0,      50'000);
     addRange(b, 50'000, 100'000);
 
-    EXPECT_TRUE(a.merge(&b));
+    EXPECT_TRUE(a.merge(b));
     EXPECT_LE(relError(a.estimate(), 100'000), 0.05);
 }
 
@@ -156,7 +150,7 @@ TEST(Merge, OverlappingSets_NoDoubleCounting) {
     addRange(a, 0, 50'000);
     addRange(b, 0, 50'000);   // identical
 
-    EXPECT_TRUE(a.merge(&b));
+    EXPECT_TRUE(a.merge(b));
     EXPECT_LE(relError(a.estimate(), 50'000), 0.05);
 }
 
@@ -165,11 +159,11 @@ TEST(Merge, EmptyIntoPopulated_EstimateUnchanged) {
     addRange(populated, 0, 50'000);
     long before = populated.estimate();
 
-    EXPECT_TRUE(populated.merge(&empty));
+    EXPECT_TRUE(populated.merge(empty));
     EXPECT_EQ(before, populated.estimate());
 }
 
 TEST(Merge, IncompatibleParams_ReturnsFalse) {
     HLLPlusPlus a(12, 6), b(14, 6);   // different p
-    EXPECT_FALSE(a.merge(&b));
+    EXPECT_FALSE(a.merge(b));
 }

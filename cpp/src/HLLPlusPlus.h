@@ -90,15 +90,15 @@ private:
 
     void convertToNormal();
 
-    void sparseMerge(HLLPlusPlus* other);
+    void sparseMerge(HLLPlusPlus other);
 
-    void merge4(HLLPlusPlus* other);
+    void merge4(HLLPlusPlus other);
 
-    void merge5(HLLPlusPlus* other);
+    void merge5(HLLPlusPlus other);
 
-    void merge6(HLLPlusPlus* other);
+    void merge6(HLLPlusPlus other);
 
-    void normalMerge(HLLPlusPlus* other);
+    void normalMerge(HLLPlusPlus other);
 
     void estimate4(double* results);
 
@@ -131,13 +131,13 @@ public:
 
     void add(uint64_t value);
 
-    bool merge(HLLPlusPlus* other);
+    bool merge(HLLPlusPlus other);
 
     int64_t estimate();
 
     std::vector<uint8_t> serialize();
 
-    static HLLPlusPlus* deserialize(const std::vector<uint8_t>&);
+    static HLLPlusPlus deserialize(const std::vector<uint8_t>&);
 
     void debugInfo();
 };
