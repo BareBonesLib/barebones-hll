@@ -359,13 +359,13 @@ double HLLPlusPlus::getAlphaM(int M) {
     }
 }
 
-HLLPlusPlus::HLLPlusPlus() : HLLPlusPlus(DEFAULT_P, DEFAULT_R) {
+explicit HLLPlusPlus::HLLPlusPlus() : HLLPlusPlus(DEFAULT_P, DEFAULT_R) {
 }
 
-HLLPlusPlus::HLLPlusPlus(int p) : HLLPlusPlus(p, DEFAULT_R) {
+explicit HLLPlusPlus::HLLPlusPlus(int p) : HLLPlusPlus(p, DEFAULT_R) {
 }
 
-HLLPlusPlus::HLLPlusPlus(int p, int r) {    
+explicit HLLPlusPlus::HLLPlusPlus(int p, int r) {    
     if(p < MIN_P || p > MAX_P)
         throw std::invalid_argument("invalid p");
     if(r < 4 || r > 6)

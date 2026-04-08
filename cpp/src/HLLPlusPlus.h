@@ -116,11 +116,11 @@ private:
     }
 
 public:
-    HLLPlusPlus();
+    explicit HLLPlusPlus();
 
-    HLLPlusPlus(int p);
+    explicit HLLPlusPlus(int p);
 
-    HLLPlusPlus(int p, int r);
+    explicit HLLPlusPlus(int p, int r);
 
     ~HLLPlusPlus();
 
