@@ -1,6 +1,8 @@
 #include "HLLPlusPlus.h"
 #include <iostream>
 
+namespace bareboneshll {
+
 double HLLPlusPlus::PRE_POW_2_K[64];
 
 std::vector<std::vector<double>> HLLPlusPlus::empiricalRawEstimateData = {
@@ -359,13 +361,13 @@ double HLLPlusPlus::getAlphaM(int M) {
     }
 }
 
-explicit HLLPlusPlus::HLLPlusPlus() : HLLPlusPlus(DEFAULT_P, DEFAULT_R) {
+HLLPlusPlus::HLLPlusPlus() : HLLPlusPlus(DEFAULT_P, DEFAULT_R) {
 }
 
-explicit HLLPlusPlus::HLLPlusPlus(int p) : HLLPlusPlus(p, DEFAULT_R) {
+HLLPlusPlus::HLLPlusPlus(int p) : HLLPlusPlus(p, DEFAULT_R) {
 }
 
-explicit HLLPlusPlus::HLLPlusPlus(int p, int r) {    
+HLLPlusPlus::HLLPlusPlus(int p, int r) {    
     if(p < MIN_P || p > MAX_P)
         throw std::invalid_argument("invalid p");
     if(r < 4 || r > 6)
@@ -683,3 +685,5 @@ void HLLPlusPlus::debugInfo() {
 // explicit instantiation definitions — tells the compiler to generate these two
 template std::vector<uint8_t> HLLPlusPlus::serialize<std::vector<uint8_t>>();
 template std::string HLLPlusPlus::serialize<std::string>();
+
+}

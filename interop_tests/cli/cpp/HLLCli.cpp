@@ -11,6 +11,7 @@
 
 
 using json = nlohmann::json;
+using HLLPlusPlus = bareboneshll::HLLPlusPlus;
 
 // ── base64 helpers ────────────────────────────────────────────────────────────
 
