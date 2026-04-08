@@ -34,8 +34,8 @@ public class HLLPlusPlus {
     private static final int DEFAULT_R = 6;
     private static final int SPARSE_P_EXTRA_BITS = 4;
     private static final int DT_WIDTH = 32;
-    private static final int SPARSE_SERIALIZED_METADATA_FIELDS_BYTES = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte payload length
-    private static final int DENSE_SERIALIZED_METADATA_FIELDS_BYTES = 20; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte zeroRegs, 8 byte preEstimate, 4 byte payload length
+    private static final int SPARSE_SERIALIZED_METADATA_FIELDS_BYTES = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length
+    private static final int DENSE_SERIALIZED_METADATA_FIELDS_BYTES = 20; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length, 4 byte zeroRegs, 8 byte preEstimate
     private static final int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
     private static final double[][] empiricalRawEstimateData = {
             // precision 4
@@ -310,9 +310,9 @@ public class HLLPlusPlus {
             int prevValue = (bucketValue >>> registerOffset) & maxRegisterValue;
             if(prevValue < val) {
                 this.registers[bucketIndex] = (bucketValue & ~(maxRegisterValue << registerOffset)) | (val << registerOffset);
-                preEstimate -= PRE_POW_2_K[prevValue];
-                preEstimate += PRE_POW_2_K[val];
-                zeroRegs -= (prevValue == 0) ? 1 : 0;
+                this.preEstimate -= PRE_POW_2_K[prevValue];
+                this.preEstimate += PRE_POW_2_K[val];
+                this.zeroRegs -= (prevValue == 0) ? 1 : 0;
             }
         }
 
@@ -475,12 +475,12 @@ public class HLLPlusPlus {
                     int registerOffset = (regPerDatatype - idx % regPerDatatype - 1) * r;
 
                     int registerValue = this.registers[bucketIndex];
-                    int mask = maxRegisterValue << registerOffset;
-                    if(Integer.compareUnsigned(registerValue & mask, val << registerOffset) < 0) {
-                        this.preEstimate -= PRE_POW_2_K[((registerValue & mask) >>> registerOffset)];
+                    int thisVal = (this.registers[bucketIndex] >>> registerOffset) & maxRegisterValue;
+                    if(thisVal < val) {
+                        this.preEstimate -= PRE_POW_2_K[thisVal];
                         this.preEstimate += PRE_POW_2_K[val];
-                        this.zeroRegs -= ((registerValue & mask) == 0) ? 1 : 0;
-                        this.registers[bucketIndex] = (registerValue & ~mask) | (val << registerOffset);
+                        this.zeroRegs -= (thisVal == 0) ? 1 : 0;
+                        this.registers[bucketIndex] = (registerValue & ~maxRegisterValue) | (val << registerOffset);
                     }
                 }
                 break;
@@ -594,6 +594,7 @@ public class HLLPlusPlus {
 
             byte[] buff = new byte[size];
             int j = 0;
+
             buff[j++] = VERSION;
             buff[j++] = (byte) 0;
             buff[j++] = (byte) this.p;
@@ -612,11 +613,12 @@ public class HLLPlusPlus {
             return buff;
         }
         else {
-            int size = m * 4 + DENSE_SERIALIZED_METADATA_FIELDS_BYTES;
-            byte[] buff = new byte[size];
             int bufferSize = m * 4;
+            int size = bufferSize + DENSE_SERIALIZED_METADATA_FIELDS_BYTES;
 
+            byte[] buff = new byte[size];
             int j = 0;
+
             buff[j++] = VERSION;
             buff[j++] = (byte) 1;
             buff[j++] = (byte) p;
@@ -629,14 +631,15 @@ public class HLLPlusPlus {
             buff[j++] = (byte) ((zeroRegs >>> 16) & 0xFF);
             buff[j++] = (byte) ((zeroRegs >>> 8) & 0xFF);
             buff[j++] = (byte) (zeroRegs & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 56) & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 48) & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 40) & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 32) & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 24) & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 16) & 0xFF);
-            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 8) & 0xFF);
-            buff[j++] = (byte) (Double.doubleToLongBits(preEstimate) & 0xFF);
+            long rawPreEstimate = Double.doubleToLongBits(preEstimate);
+            buff[j++] = (byte) ((rawPreEstimate >>> 56) & 0xFF);
+            buff[j++] = (byte) ((rawPreEstimate >>> 48) & 0xFF);
+            buff[j++] = (byte) ((rawPreEstimate >>> 40) & 0xFF);
+            buff[j++] = (byte) ((rawPreEstimate >>> 32) & 0xFF);
+            buff[j++] = (byte) ((rawPreEstimate >>> 24) & 0xFF);
+            buff[j++] = (byte) ((rawPreEstimate >>> 16) & 0xFF);
+            buff[j++] = (byte) ((rawPreEstimate >>> 8) & 0xFF);
+            buff[j++] = (byte) (rawPreEstimate & 0xFF);
 
             for(int i=0; i<m; i++) {
                 buff[j++] = (byte) ((this.registers[i] >>> 24) & 0xFF);
@@ -663,7 +666,7 @@ public class HLLPlusPlus {
         int r = buff[j++];
         int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
         if(hllBufferSize != (buff.length - SERIALIZED_METADATA_FIELDS_BYTES))
-            throw new IllegalArgumentException("expected payload buffer length: " + (buff.length - SERIALIZED_METADATA_FIELDS_BYTES) + " got: " + hllBufferSize);
+            throw new IllegalArgumentException("expected hll buffer length: " + hllBufferSize + " got: " + (buff.length - SERIALIZED_METADATA_FIELDS_BYTES));
 
         HLLPlusPlus hll = new HLLPlusPlus(p, r);
 

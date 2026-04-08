@@ -27,9 +27,11 @@ private:
     int conversionThreshold;
     int sparseSetIndexOffset;
     int sparseListIndex;
+    double preEstimate;
+    int zeroRegs;
 
     // below are constants
-    static const unsigned char VERSION = 0;
+    static const unsigned char VERSION = 1;
     static const int TEMPORARY_LIST_SIZE = 5;
     static const int MIN_P = 4;
     static const int MAX_P = 18;
@@ -39,7 +41,8 @@ private:
     static const int DEFAULT_R = 6;
     static const int SPARSE_P_EXTRA_BITS = 4;
     static const int DT_WIDTH = 32;
-    static const int SERIALIZED_METADATA_FIELDS = 8;  // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte payload length
+    static const int SPARSE_SERIALIZED_METADATA_FIELDS_BYTES = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length
+    static const int DENSE_SERIALIZED_METADATA_FIELDS_BYTES = 20; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length, 4 byte zeroRegs, 8 byte preEstimate
     static const int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
     static std::vector<std::vector<double>> empiricalRawEstimateData;
     static std::vector<std::vector<double>> empiricalBiasData;
@@ -99,12 +102,6 @@ private:
     void merge6(HLLPlusPlus other);
 
     void normalMerge(HLLPlusPlus other);
-
-    void estimate4(double* results);
-
-    void estimate5(double* results);
-
-    void estimate6(double* results);
 
     double estimateBias(double E);
 
