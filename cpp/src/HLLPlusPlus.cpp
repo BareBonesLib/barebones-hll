@@ -71,17 +71,6 @@ std::vector<std::vector<double>> HLLPlusPlus::empiricalBiasData = {
 
 const int HLLPlusPlus::empiricalThreshold[] = {10, 20, 40, 80, 220, 400, 900, 1800, 3100, 6500, 11500, 20000, 50000, 120000, 350000};
 
-// bool HLLPlusPlus::initialized = false;
-
-// void HLLPlusPlus::initializeStatic() {
-//     if (!initialized) {
-//         for(int i = 0; i < 64; i++) {
-//             PRE_POW_2_K[i] = pow(2.0, -i);
-//         }
-//         initialized = true;
-//     }
-// }
-
 uint8_t HLLPlusPlus::readRegister(int index) {
     if(isSparse) {
         mergeTmpSparse();
@@ -376,9 +365,7 @@ HLLPlusPlus::HLLPlusPlus() : HLLPlusPlus(DEFAULT_P, DEFAULT_R) {
 HLLPlusPlus::HLLPlusPlus(int p) : HLLPlusPlus(p, DEFAULT_R) {
 }
 
-HLLPlusPlus::HLLPlusPlus(int p, int r) {
-    // initializeStatic();
-    
+HLLPlusPlus::HLLPlusPlus(int p, int r) {    
     if(p < MIN_P || p > MAX_P)
         throw std::invalid_argument("invalid p");
     if(r < 4 || r > 6)

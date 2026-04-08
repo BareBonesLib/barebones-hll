@@ -17,6 +17,8 @@ private:
     bool isSparse;
     std::vector<uint32_t> sparseSet;
     std::vector<uint32_t> sparseList;
+    double preEstimate;
+    int zeroRegs;
 
     // below variables are derived
     int m;
@@ -27,8 +29,6 @@ private:
     int conversionThreshold;
     int sparseSetIndexOffset;
     int sparseListIndex;
-    double preEstimate;
-    int zeroRegs;
 
     // below are constants
     static const unsigned char VERSION = 1;
@@ -49,7 +49,6 @@ private:
     static const int empiricalThreshold[];
 
     static double PRE_POW_2_K[64];
-    // static bool initialized;
 
     inline static struct Init {
         Init() {
@@ -77,7 +76,6 @@ private:
         }
     } _init;
 
-    // static void initializeStatic();
 
     // read r bits of the registers from a specified bit location and return it as a byte.
     // this is for debugging purposes only
