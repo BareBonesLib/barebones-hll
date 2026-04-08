@@ -10,6 +10,8 @@ public class HLLPlusPlus {
     private boolean isSparse;
     private int[] sparseSet;
     private int[] sparseList;
+    private double preEstimate;
+    private int zeroRegs;
 
     // below variables are derived
     private final int m;
@@ -22,7 +24,7 @@ public class HLLPlusPlus {
     private int sparseListIndex;
 
     // below are constants
-    private static final byte VERSION = 0;
+    private static final byte VERSION = 1;
     private static final int TEMPORARY_LIST_SIZE = 5;
     private static final int MIN_P = 4;
     private static final int MAX_P = 18;
@@ -32,7 +34,8 @@ public class HLLPlusPlus {
     private static final int DEFAULT_R = 6;
     private static final int SPARSE_P_EXTRA_BITS = 4;
     private static final int DT_WIDTH = 32;
-    private static final int SERIALIZED_METADATA_FIELDS = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte payload length
+    private static final int SPARSE_SERIALIZED_METADATA_FIELDS_BYTES = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte payload length
+    private static final int DENSE_SERIALIZED_METADATA_FIELDS_BYTES = 20; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte zeroRegs, 8 byte preEstimate, 4 byte payload length
     private static final int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
     private static final double[][] empiricalRawEstimateData = {
             // precision 4
@@ -282,13 +285,19 @@ public class HLLPlusPlus {
             int registerOffset = (regPerDatatype - registerIndex % regPerDatatype - 1) * r;
             int bucketValue = this.registers[bucketIndex];
             int prevValue = (bucketValue >>> registerOffset) & maxRegisterValue;
-            if(prevValue < cnt)
+            if(prevValue < cnt) {
                 this.registers[bucketIndex] = (bucketValue & ~(maxRegisterValue << registerOffset)) | (cnt << registerOffset);
+                this.preEstimate -= PRE_POW_2_K[prevValue];
+                this.preEstimate += PRE_POW_2_K[cnt];
+                this.zeroRegs -= (prevValue == 0) ? 1 : 0;
+            }
         }
     }
 
     private void convertToNormal() {
         this.registers = new int[m];
+        preEstimate = PRE_POW_2_K[0] * totalRegisters;
+        zeroRegs = totalRegisters;
 
         for(int i=0; i<this.sparseSet.length; i++) {
             int idx = sparseSet[i] >>> (sparseSetIndexOffset + SPARSE_P_EXTRA_BITS);
@@ -299,8 +308,12 @@ public class HLLPlusPlus {
 
             int bucketValue = this.registers[bucketIndex];
             int prevValue = (bucketValue >>> registerOffset) & maxRegisterValue;
-            if(prevValue < val)
+            if(prevValue < val) {
                 this.registers[bucketIndex] = (bucketValue & ~(maxRegisterValue << registerOffset)) | (val << registerOffset);
+                preEstimate -= PRE_POW_2_K[prevValue];
+                preEstimate += PRE_POW_2_K[val];
+                zeroRegs -= (prevValue == 0) ? 1 : 0;
+            }
         }
 
         this.sparseList = new int[0];
@@ -312,10 +325,7 @@ public class HLLPlusPlus {
         int[] a = this.sparseSet;
         int[] b = other.sparseSet;
 
-        // int unq = determineTotalUniques(this.sparseSet, other.sparseSet);
         int[] newSparseSet = new int[a.length + b.length];
-
-//        System.err.println(a.length + " + " + b.length);
 
         int l = 0;
         int r = 0;
@@ -349,7 +359,6 @@ public class HLLPlusPlus {
                 }
             }
         }
-//        System.err.println("unq -> " + k);
 
         this.sparseSet = k < newSparseSet.length ? Arrays.copyOf(newSparseSet, k) : newSparseSet;
     }
@@ -363,10 +372,17 @@ public class HLLPlusPlus {
             int thisBucket = this.registers[i];
             int otherBucket = other.registers[i];
             for(int j = 0; j < REGISTERS_PER_BUCKET; ++j) {
-                int mask = MASK << (REGISTER_SIZE * j);
-                int thisRawVal = thisBucket & mask;
-                int otherRawVal = otherBucket & mask;
-                word |= (Integer.compareUnsigned(thisRawVal, otherRawVal) < 0) ? otherRawVal : thisRawVal;
+                final int registerOffset = (REGISTER_SIZE * j);
+                int thisVal = (thisBucket >>> registerOffset) & MASK;
+                int otherVal = (otherBucket >>> registerOffset) & MASK;
+                if(thisVal < otherVal) {
+                    this.preEstimate -= PRE_POW_2_K[thisVal];
+                    this.preEstimate += PRE_POW_2_K[otherVal];
+                    this.zeroRegs -= (thisVal == 0) ? 1 : 0;
+                    word |= (otherVal << registerOffset);
+                } else {
+                    word |= (thisVal << registerOffset);
+                }
             }
             this.registers[i] = word;
         }
@@ -381,10 +397,17 @@ public class HLLPlusPlus {
             int thisBucket = this.registers[i];
             int otherBucket = other.registers[i];
             for(int j = 0; j < REGISTERS_PER_BUCKET; ++j) {
-                int mask = MASK << (REGISTER_SIZE * j);
-                int thisRawVal = thisBucket & mask;
-                int otherRawVal = otherBucket & mask;
-                word |= (Integer.compareUnsigned(thisRawVal, otherRawVal) < 0) ? otherRawVal : thisRawVal;
+                final int registerOffset = (REGISTER_SIZE * j);
+                int thisVal = (thisBucket >>> registerOffset) & MASK;
+                int otherVal = (otherBucket >>> registerOffset) & MASK;
+                if(thisVal < otherVal) {
+                    this.preEstimate -= PRE_POW_2_K[thisVal];
+                    this.preEstimate += PRE_POW_2_K[otherVal];
+                    this.zeroRegs -= (thisVal == 0) ? 1 : 0;
+                    word |= (otherVal << registerOffset);
+                } else {
+                    word |= (thisVal << registerOffset);
+                }
             }
             this.registers[i] = word;
         }
@@ -399,10 +422,17 @@ public class HLLPlusPlus {
             int thisBucket = this.registers[i];
             int otherBucket = other.registers[i];
             for(int j = 0; j < REGISTERS_PER_BUCKET; ++j) {
-                int mask = MASK << (REGISTER_SIZE * j);
-                int thisRawVal = thisBucket & mask;
-                int otherRawVal = otherBucket & mask;
-                word |= (Integer.compareUnsigned(thisRawVal, otherRawVal) < 0) ? otherRawVal : thisRawVal;
+                final int registerOffset = (REGISTER_SIZE * j);
+                int thisVal = (thisBucket >>> registerOffset) & MASK;
+                int otherVal = (otherBucket >>> registerOffset) & MASK;
+                if(thisVal < otherVal) {
+                    this.preEstimate -= PRE_POW_2_K[thisVal];
+                    this.preEstimate += PRE_POW_2_K[otherVal];
+                    this.zeroRegs -= (thisVal == 0) ? 1 : 0;
+                    word |= (otherVal << registerOffset);
+                } else {
+                    word |= (thisVal << registerOffset);
+                }
             }
             this.registers[i] = word;
         }
@@ -447,6 +477,9 @@ public class HLLPlusPlus {
                     int registerValue = this.registers[bucketIndex];
                     int mask = maxRegisterValue << registerOffset;
                     if(Integer.compareUnsigned(registerValue & mask, val << registerOffset) < 0) {
+                        this.preEstimate -= PRE_POW_2_K[((registerValue & mask) >>> registerOffset)];
+                        this.preEstimate += PRE_POW_2_K[val];
+                        this.zeroRegs -= ((registerValue & mask) == 0) ? 1 : 0;
                         this.registers[bucketIndex] = (registerValue & ~mask) | (val << registerOffset);
                     }
                 }
@@ -462,102 +495,6 @@ public class HLLPlusPlus {
         return true;
     }
 
-    private void estimate4(double[] results) {
-        final int REGISTER_PER_BUCKET = 8;
-        final int REGISTER_SIZE = 4;
-        final int MASK = 0xf;
-
-        int zeroRegisters = 0;
-        double sum = 0;
-        int completeBuckets = totalRegisters / REGISTER_PER_BUCKET;
-        int remainingRegisters = totalRegisters % REGISTER_PER_BUCKET;
-
-        for(int i = 0; i < completeBuckets; i++) {
-            int cur = this.registers[i];
-            for(int j = 0; j < REGISTER_PER_BUCKET; j++) {
-                int k = (cur >>> (REGISTER_SIZE * j)) & MASK;
-                zeroRegisters += ((k == 0) ? 1 : 0);
-                sum = sum + PRE_POW_2_K[k];
-            }
-        }
-
-        if(remainingRegisters > 0) {
-            int last = this.registers[this.registers.length - 1];
-            for(int j = REGISTER_PER_BUCKET -1; j >= (REGISTER_PER_BUCKET - remainingRegisters); j--){
-                int k = (last >>> (REGISTER_SIZE * j)) & MASK;
-                zeroRegisters += ((k == 0) ? 1 : 0);
-                sum = sum + PRE_POW_2_K[k];
-            }
-        }
-
-        results[0] = sum;
-        results[1] = zeroRegisters;
-    }
-
-    private void estimate5(double[] results) {
-        final int REGISTER_PER_BUCKET = 6;
-        final int REGISTER_SIZE = 5;
-        final int MASK = 0x1f;
-
-        int zeroRegisters = 0;
-        double sum = 0;
-        int completeBuckets = totalRegisters / REGISTER_PER_BUCKET;
-        int remainingRegisters = totalRegisters % REGISTER_PER_BUCKET;
-
-        for(int i = 0; i < completeBuckets; i++) {
-            int cur = this.registers[i];
-            for(int j = 0; j < REGISTER_PER_BUCKET; j++) {
-                int k = (cur >>> (REGISTER_SIZE * j)) & MASK;
-                zeroRegisters += ((k == 0) ? 1 : 0);
-                sum = sum + PRE_POW_2_K[k];
-            }
-        }
-
-        if(remainingRegisters > 0) {
-            int last = this.registers[this.registers.length - 1];
-            for(int j = REGISTER_PER_BUCKET -1; j >= (REGISTER_PER_BUCKET - remainingRegisters); j--){
-                int k = (last >>> (REGISTER_SIZE * j)) & MASK;
-                zeroRegisters += ((k == 0) ? 1 : 0);
-                sum = sum + PRE_POW_2_K[k];
-            }
-        }
-
-        results[0] = sum;
-        results[1] = zeroRegisters;
-    }
-
-    private void estimate6(double[] results) {
-        final int REGISTER_PER_BUCKET = 5;
-        final int REGISTER_SIZE = 6;
-        final int MASK = 0x3f;
-
-        int zeroRegisters = 0;
-        double sum = 0;
-        int completeBuckets = totalRegisters / REGISTER_PER_BUCKET;
-        int remainingRegisters = totalRegisters % REGISTER_PER_BUCKET;
-
-        for(int i = 0; i < completeBuckets; i++) {
-            int cur = this.registers[i];
-            for(int j = 0; j < REGISTER_PER_BUCKET; j++) {
-                int k = (cur >>> (REGISTER_SIZE * j)) & MASK;
-                zeroRegisters += ((k == 0) ? 1 : 0);
-                sum = sum + PRE_POW_2_K[k];
-            }
-        }
-
-        if(remainingRegisters > 0) {
-            int last = this.registers[this.registers.length - 1];
-            for(int j = REGISTER_PER_BUCKET -1; j >= (REGISTER_PER_BUCKET - remainingRegisters); j--){
-                int k = (last >>> (REGISTER_SIZE * j)) & MASK;
-                zeroRegisters += ((k == 0) ? 1 : 0);
-                sum = sum + PRE_POW_2_K[k];
-            }
-        }
-
-        results[0] = sum;
-        results[1] = zeroRegisters;
-    }
-
     public long estimate() {
         double M = totalRegisters;
         if(isSparse) {
@@ -567,19 +504,8 @@ public class HLLPlusPlus {
             return Math.round(SM * Math.log(SM / (SM - this.sparseSet.length)));
         }
 
-        double[] results = new double[2];
-
-        switch(r) {
-            case 4: estimate4(results);
-                break;
-            case 5: estimate5(results);
-                break;
-            case 6: estimate6(results);
-                break;
-        }
-
-        double sum = results[0];
-        double zeroRegisters = results[1];
+        double sum = this.preEstimate;
+        double zeroRegisters = this.zeroRegs;
 
         if(zeroRegisters != 0) {
             double linearCountingEstimate = Math.round(M * Math.log(M / zeroRegisters));
@@ -664,7 +590,7 @@ public class HLLPlusPlus {
             mergeTmpSparse();
             int sparseSetLength = this.sparseSet.length;
             int bufferSize = sparseSetLength * 4;
-            int size = sparseSetLength * 4 + SERIALIZED_METADATA_FIELDS;
+            int size = sparseSetLength * 4 + SPARSE_SERIALIZED_METADATA_FIELDS_BYTES;
 
             byte[] buff = new byte[size];
             int j = 0;
@@ -686,7 +612,7 @@ public class HLLPlusPlus {
             return buff;
         }
         else {
-            int size = m * 4 + SERIALIZED_METADATA_FIELDS;
+            int size = m * 4 + DENSE_SERIALIZED_METADATA_FIELDS_BYTES;
             byte[] buff = new byte[size];
             int bufferSize = m * 4;
 
@@ -699,6 +625,18 @@ public class HLLPlusPlus {
             buff[j++] = (byte) ((bufferSize >>> 16) & 0xFF);
             buff[j++] = (byte) ((bufferSize >>> 8) & 0xFF);
             buff[j++] = (byte) (bufferSize & 0xFF);
+            buff[j++] = (byte) ((zeroRegs >>> 24) & 0xFF);
+            buff[j++] = (byte) ((zeroRegs >>> 16) & 0xFF);
+            buff[j++] = (byte) ((zeroRegs >>> 8) & 0xFF);
+            buff[j++] = (byte) (zeroRegs & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 56) & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 48) & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 40) & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 32) & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 24) & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 16) & 0xFF);
+            buff[j++] = (byte) ((Double.doubleToLongBits(preEstimate) >>> 8) & 0xFF);
+            buff[j++] = (byte) (Double.doubleToLongBits(preEstimate) & 0xFF);
 
             for(int i=0; i<m; i++) {
                 buff[j++] = (byte) ((this.registers[i] >>> 24) & 0xFF);
@@ -711,19 +649,21 @@ public class HLLPlusPlus {
     }
 
     public static HLLPlusPlus deserialize(byte[] buff) {
-        if (buff == null || buff.length < SERIALIZED_METADATA_FIELDS)
-            throw new IllegalArgumentException("array is null or smaller than " + SERIALIZED_METADATA_FIELDS + " bytes");
+        if (buff == null || buff.length < Math.min(SPARSE_SERIALIZED_METADATA_FIELDS_BYTES, DENSE_SERIALIZED_METADATA_FIELDS_BYTES))
+            throw new IllegalArgumentException("buffer is null: " + (buff == null) + " or smaller than " + Math.min(SPARSE_SERIALIZED_METADATA_FIELDS_BYTES, DENSE_SERIALIZED_METADATA_FIELDS_BYTES));
         if(buff[0] != VERSION)
             throw new IllegalArgumentException("expected version: " + VERSION + " got version: " + buff[0]);
+        final int SERIALIZED_METADATA_FIELDS_BYTES = (buff[1] == 0) ? SPARSE_SERIALIZED_METADATA_FIELDS_BYTES : DENSE_SERIALIZED_METADATA_FIELDS_BYTES;
+        if(buff.length < SERIALIZED_METADATA_FIELDS_BYTES)
+            throw new IllegalArgumentException("buffer is smaller than " + SERIALIZED_METADATA_FIELDS_BYTES + " bytes");
 
         int j = 1; // skipping version byte, already checked above
         int mode = buff[j++];
         int p = buff[j++];
         int r = buff[j++];
         int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
-
-        if(hllBufferSize != (buff.length - SERIALIZED_METADATA_FIELDS))
-            throw new IllegalArgumentException("expected hll buffer length: " + hllBufferSize + " got: " + (buff.length - SERIALIZED_METADATA_FIELDS));
+        if(hllBufferSize != (buff.length - SERIALIZED_METADATA_FIELDS_BYTES))
+            throw new IllegalArgumentException("expected payload buffer length: " + (buff.length - SERIALIZED_METADATA_FIELDS_BYTES) + " got: " + hllBufferSize);
 
         HLLPlusPlus hll = new HLLPlusPlus(p, r);
 
@@ -743,8 +683,10 @@ public class HLLPlusPlus {
             hll.isSparse = false;
             hll.sparseList = new int[0];
             hll.registers = new int[hll.m];
+            hll.zeroRegs = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
+            hll.preEstimate = Double.longBitsToDouble(((buff[j++] & 0xFFL) << 56) | ((buff[j++] & 0xFFL) << 48) | ((buff[j++] & 0xFFL) << 40) | ((buff[j++] & 0xFFL) << 32) | ((buff[j++] & 0xFFL) << 24) | ((buff[j++] & 0xFFL) << 16) | ((buff[j++] & 0xFFL) << 8) | (buff[j++] & 0xFFL));
             if((hll.m * 4) != hllBufferSize)
-                throw new IllegalArgumentException("dense HLL buffer invalid size: " + (buff.length - SERIALIZED_METADATA_FIELDS) + " expected: " + hll.m);
+                throw new IllegalArgumentException("dense HLL buffer invalid size: " + (buff.length - SERIALIZED_METADATA_FIELDS_BYTES) + " expected: " + (hll.m * 4));
 
             for(int i=0; i < hll.m; i++) {
                 hll.registers[i] = 
