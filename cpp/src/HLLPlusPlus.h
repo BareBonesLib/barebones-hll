@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <vector>
 
+namespace bareboneshll {
+
 class HLLPlusPlus {
 private:
     // below variables need to be serialized
@@ -144,4 +146,5 @@ public:
 extern template std::vector<uint8_t> HLLPlusPlus::serialize<std::vector<uint8_t>>();
 extern template std::string HLLPlusPlus::serialize<std::string>();
 
+}
 #endif
