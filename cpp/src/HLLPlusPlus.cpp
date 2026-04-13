@@ -460,7 +460,7 @@ bool HLLPlusPlus::merge(HLLPlusPlus other) {
                     this->preEstimate -= PRE_POW_2_K[thisVal];
                     this->preEstimate += PRE_POW_2_K[val];
                     this->zeroRegs -= (thisVal == 0) ? 1 : 0;
-                    this->registers[bucketIndex] = (registerValue & ~maxRegisterValue) | (val << registerOffset);
+                    this->registers[bucketIndex] = (registerValue & ~(maxRegisterValue << registerOffset)) | (val << registerOffset);
                 }
             }
             break;
