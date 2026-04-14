@@ -17,6 +17,7 @@ Pytest IDs look like:
 """
 
 import pytest
+import random
 from conftest import DEFAULT_P, DEFAULT_R, rel_error, values, valuesRange
 
 MAX_REL_ERROR = 0.05   # 5% ≈ 3× theoretical std error for p=12
@@ -252,3 +253,54 @@ class TestMergeInterop:
             f"  estimate:  {merged.estimate}\n"
             f"  rel error: {err*100:.2f}%"
         )
+
+    def test_heavy_repeated_merge_drift(self, lang_pair):
+        """
+        Stress test for merge drift under heavy merge pressure.
+
+        Build 5 arrays of 10k HLL sketches.
+        Each array:
+          - receives 50k total inserts
+          - only 25k distinct values
+          - first 5k sketches contain <100 elements each
+
+        Then merge each array into a single HLL.
+        All 5 resulting HLLs must match (±1 allowed).
+        """
+        src_name, src, dst_name, dst = lang_pair
+
+        NUM_ARRAYS = 3
+        HLLS_PER_ARRAY = 1_000
+
+        arrays = []
+
+        for arr_idx in range(NUM_ARRAYS):
+            sketches = []
+
+            for i in range(HLLS_PER_ARRAY):
+                # Guarantee 10k distinct per array
+                vals = [i]
+                if random.choice((0, 1)):
+                    vals.extend(valuesRange(0, i))
+                else:
+                    vals.extend(valuesRange(i, HLLS_PER_ARRAY))
+
+                sk = src.serialize(DEFAULT_P, DEFAULT_R, vals)
+                sketches.append(sk.bytes_b64)
+
+            arrays.append(sketches)
+
+        # Merge each array independently (merge in dst)
+        merged_estimates = []
+        for sketches in arrays:
+            merged = dst.merge(sketches)
+            merged_estimates.append(merged.estimate)
+
+        base = merged_estimates[0]
+        for idx, est in enumerate(merged_estimates[1:], start=1):
+            assert abs(est - base) <= 1, (
+                f"Heavy merge drift detected ({src_name}→{dst_name})\n"
+                f"  base estimate: {base}\n"
+                f"  array {idx} estimate: {est}\n"
+                f"  diff: {abs(est - base)} (allowed ±1)"
+            )

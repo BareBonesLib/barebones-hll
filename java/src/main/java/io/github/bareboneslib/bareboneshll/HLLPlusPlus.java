@@ -664,7 +664,13 @@ public class HLLPlusPlus {
         int mode = buff[j++];
         int p = buff[j++];
         int r = buff[j++];
-        int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
+        int hllBufferSize = (
+            ((buff[j] & 0xFF) << 24) | 
+            ((buff[j + 1] & 0xFF) << 16) | 
+            ((buff[j + 2] & 0xFF) << 8) | 
+            (buff[j + 3] & 0xFF)
+        );
+        j += 4;
         if(hllBufferSize != (buff.length - SERIALIZED_METADATA_FIELDS_BYTES))
             throw new IllegalArgumentException("expected hll buffer length: " + hllBufferSize + " got: " + (buff.length - SERIALIZED_METADATA_FIELDS_BYTES));
 
@@ -674,10 +680,12 @@ public class HLLPlusPlus {
             int n = hllBufferSize / 4;
             int[] sparseSet = new int[n];
             for(int i=0; i<n; i++) {
-                sparseSet[i] = ((buff[j] & 0xFF) << 24) |
-                        ((buff[j + 1] & 0xFF) << 16) |
-                        ((buff[j + 2] & 0xFF) << 8) |
-                        (buff[j + 3] & 0xFF);
+                sparseSet[i] = (
+                    ((buff[j] & 0xFF) << 24) |
+                    ((buff[j + 1] & 0xFF) << 16) |
+                    ((buff[j + 2] & 0xFF) << 8) |
+                    (buff[j + 3] & 0xFF)
+                );
                 j += 4;
             }
             hll.sparseSet = sparseSet;
@@ -686,17 +694,34 @@ public class HLLPlusPlus {
             hll.isSparse = false;
             hll.sparseList = new int[0];
             hll.registers = new int[hll.m];
-            hll.zeroRegs = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
-            hll.preEstimate = Double.longBitsToDouble(((buff[j++] & 0xFFL) << 56) | ((buff[j++] & 0xFFL) << 48) | ((buff[j++] & 0xFFL) << 40) | ((buff[j++] & 0xFFL) << 32) | ((buff[j++] & 0xFFL) << 24) | ((buff[j++] & 0xFFL) << 16) | ((buff[j++] & 0xFFL) << 8) | (buff[j++] & 0xFFL));
+            hll.zeroRegs = (
+                ((buff[j] & 0xFF) << 24) | 
+                ((buff[j + 1] & 0xFF) << 16) | 
+                ((buff[j + 2] & 0xFF) << 8) | 
+                (buff[j + 3] & 0xFF)
+            );
+            j += 4;
+            hll.preEstimate = Double.longBitsToDouble(
+                ((buff[j] & 0xFFL) << 56) | 
+                ((buff[j + 1] & 0xFFL) << 48) | 
+                ((buff[j + 2] & 0xFFL) << 40) | 
+                ((buff[j + 3] & 0xFFL) << 32) | 
+                ((buff[j + 4] & 0xFFL) << 24) | 
+                ((buff[j + 5] & 0xFFL) << 16) | 
+                ((buff[j + 6] & 0xFFL) << 8) | 
+                (buff[j + 7] & 0xFFL)
+            );
+            j += 8;
             if((hll.m * 4) != hllBufferSize)
                 throw new IllegalArgumentException("dense HLL buffer invalid size: " + (buff.length - SERIALIZED_METADATA_FIELDS_BYTES) + " expected: " + (hll.m * 4));
 
             for(int i=0; i < hll.m; i++) {
-                hll.registers[i] = 
+                hll.registers[i] = (
                     ((buff[j] & 0xFF) << 24) |
                     ((buff[j + 1] & 0xFF) << 16) |
                     ((buff[j + 2] & 0xFF) << 8) |
-                    (buff[j + 3] & 0xFF);
+                    (buff[j + 3] & 0xFF)
+                );
                 j += 4;
             }
         }

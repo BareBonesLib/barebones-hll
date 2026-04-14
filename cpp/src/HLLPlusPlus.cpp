@@ -638,7 +638,13 @@ HLLPlusPlus HLLPlusPlus::deserialize(const unsigned char* buff, size_t buffSize)
     int mode = buff[j++];
     int p = buff[j++];
     int r = buff[j++];
-    int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
+    int hllBufferSize = (
+        ((buff[j] & 0xFF) << 24) | 
+        ((buff[j + 1] & 0xFF) << 16) | 
+        ((buff[j + 2] & 0xFF) << 8) | 
+        (buff[j + 3] & 0xFF)
+    );
+    j += 4;
     if(hllBufferSize != (buffSize - SERIALIZED_METADATA_FIELDS_BYTES))
         throw new std::invalid_argument("expeceted hll buffer length" + std::to_string(hllBufferSize) + " got: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS_BYTES));
 
@@ -648,28 +654,46 @@ HLLPlusPlus HLLPlusPlus::deserialize(const unsigned char* buff, size_t buffSize)
         int n = hllBufferSize / 4;
         hll.sparseSet = std::vector<uint32_t>(n);
         for (int i = 0; i < n; i++) {
-            hll.sparseSet[i] =
+            hll.sparseSet[i] = (
                 (uint8_t(buff[j]) << 24) |
                 (uint8_t(buff[j + 1]) << 16) |
                 (uint8_t(buff[j + 2]) << 8) |
-                uint8_t(buff[j + 3]);
+                uint8_t(buff[j + 3])
+            );
             j += 4;
         }
     } else {
         hll.isSparse = false;
         hll.registers = std::vector<uint32_t>(hll.m);
-        hll.zeroRegs = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
-        unsigned long long rawPreEstimate = ((buff[j++] & 0xFFL) << 56) | ((buff[j++] & 0xFFL) << 48) | ((buff[j++] & 0xFFL) << 40) | ((buff[j++] & 0xFFL) << 32) | ((buff[j++] & 0xFFL) << 24) | ((buff[j++] & 0xFFL) << 16) | ((buff[j++] & 0xFFL) << 8) | (buff[j++] & 0xFFL);
+        hll.zeroRegs = (
+            ((buff[j] & 0xFF) << 24) | 
+            ((buff[j + 1] & 0xFF) << 16) | 
+            ((buff[j + 2] & 0xFF) << 8) | 
+            (buff[j + 3] & 0xFF)
+        );
+        j += 4;
+        unsigned long long rawPreEstimate = (
+            ((buff[j] & 0xFFL) << 56) |
+            ((buff[j + 1] & 0xFFL) << 48) | 
+            ((buff[j + 2] & 0xFFL) << 40) | 
+            ((buff[j + 3] & 0xFFL) << 32) | 
+            ((buff[j + 4] & 0xFFL) << 24) | 
+            ((buff[j + 5] & 0xFFL) << 16) | 
+            ((buff[j + 6] & 0xFFL) << 8) | 
+            (buff[j + 7] & 0xFFL)
+        );
+        j += 8;
         memcpy(&hll.preEstimate, &rawPreEstimate, sizeof(double));
         if ((hll.m * 4) != hllBufferSize)
             throw std::invalid_argument("dense HLL buffer invalid size: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS_BYTES) + " got: " + std::to_string(hll.m * 4));
 
         for (int i = 0; i < hll.m; i++) {
-            hll.registers[i] =
+            hll.registers[i] = (
                 (uint8_t(buff[j]) << 24) |
                 (uint8_t(buff[j + 1]) << 16) |
                 (uint8_t(buff[j + 2]) << 8) |
-                uint8_t(buff[j + 3]);
+                uint8_t(buff[j + 3])
+            );
             j += 4;
         }
     }
