@@ -210,7 +210,7 @@ void HLLPlusPlus::convertToNormal() {
     this->isSparse = false;
 }
 
-void HLLPlusPlus::sparseMerge(HLLPlusPlus other) {
+void HLLPlusPlus::sparseMerge(HLLPlusPlus& other) {
     std::vector<uint32_t> &a = this->sparseSet;
     std::vector<uint32_t> &b = other.sparseSet;
 
@@ -262,7 +262,7 @@ void HLLPlusPlus::sparseMerge(HLLPlusPlus other) {
     // }
 }
 
-void HLLPlusPlus::merge4(HLLPlusPlus other) {
+void HLLPlusPlus::merge4(HLLPlusPlus& other) {
     const uint32_t MASK = 0xf;
     const int REGISTERS_PER_BUCKET = 8;
     const int REGISTER_SIZE = 4;
@@ -287,7 +287,7 @@ void HLLPlusPlus::merge4(HLLPlusPlus other) {
     }
 }
 
-void HLLPlusPlus::merge5(HLLPlusPlus other) {
+void HLLPlusPlus::merge5(HLLPlusPlus& other) {
     const uint32_t MASK = 0x1f;
     const int REGISTERS_PER_BUCKET = 6;
     const int REGISTER_SIZE = 5;
@@ -312,7 +312,7 @@ void HLLPlusPlus::merge5(HLLPlusPlus other) {
     }
 }
 
-void HLLPlusPlus::merge6(HLLPlusPlus other) {
+void HLLPlusPlus::merge6(HLLPlusPlus& other) {
     const uint32_t MASK = 0x3f;
     const int REGISTERS_PER_BUCKET = 5;
     const int REGISTER_SIZE = 6;
@@ -337,7 +337,7 @@ void HLLPlusPlus::merge6(HLLPlusPlus other) {
     }
 }
 
-void HLLPlusPlus::normalMerge(HLLPlusPlus other) {
+void HLLPlusPlus::normalMerge(HLLPlusPlus& other) {
     switch(r) {
         case 4: merge4(other);
             break;
@@ -431,7 +431,7 @@ void HLLPlusPlus::add(uint64_t value) {
     }
 }
 
-bool HLLPlusPlus::merge(HLLPlusPlus other) {
+bool HLLPlusPlus::merge(HLLPlusPlus& other) {
     if (this->p != other.p || this->r != other.r)
         return false;
 
@@ -472,6 +472,8 @@ bool HLLPlusPlus::merge(HLLPlusPlus other) {
             normalMerge(other);
             break;
     }
+    std::cout<<this->zeroRegs<<" "<<this->preEstimate<<" | "<<other.zeroRegs<<" " <<other.preEstimate << std::endl;
+
     return true;
 }
 
@@ -488,7 +490,7 @@ int64_t HLLPlusPlus::estimate() {
     double zeroRegisters = this->zeroRegs;
 
     if(zeroRegisters != 0) {
-        double linearCountingEstimate = std::llround(M * log(M / zeroRegisters));
+        double linearCountingEstimate = std::llround(M * std::log(M / zeroRegisters));
         if(linearCountingEstimate <= empiricalThreshold[p - MIN_P])
             return std::llround(linearCountingEstimate);
     }
@@ -600,7 +602,8 @@ Container HLLPlusPlus::serialize() {
         buff[j++] = static_cast<uint8_t>((zeroRegs >> 8) & 0xFF);
         buff[j++] = static_cast<uint8_t>(zeroRegs & 0xFF);
         unsigned long long rawPreEstimate = 0;
-        memcpy(&rawPreEstimate, &preEstimate, sizeof(double));
+        memcpy(&rawPreEstimate, &(this->preEstimate), sizeof(double));
+        std::cout<<this->zeroRegs<<" "<<this->preEstimate<< std::endl;
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 56) & 0xFFL);
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 48) & 0xFFL);
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 40) & 0xFFL);
