@@ -472,7 +472,6 @@ bool HLLPlusPlus::merge(HLLPlusPlus& other) {
             normalMerge(other);
             break;
     }
-    std::cout<<this->zeroRegs<<" "<<this->preEstimate<<" | "<<other.zeroRegs<<" " <<other.preEstimate << std::endl;
 
     return true;
 }
@@ -603,7 +602,6 @@ Container HLLPlusPlus::serialize() {
         buff[j++] = static_cast<uint8_t>(zeroRegs & 0xFF);
         unsigned long long rawPreEstimate = 0;
         memcpy(&rawPreEstimate, &(this->preEstimate), sizeof(double));
-        std::cout<<this->zeroRegs<<" "<<this->preEstimate<< std::endl;
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 56) & 0xFFL);
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 48) & 0xFFL);
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 40) & 0xFFL);
