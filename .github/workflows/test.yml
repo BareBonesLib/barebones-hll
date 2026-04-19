@@ -47,7 +47,7 @@ jobs:
 
   interop-tests:
     name: Interop Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     needs: [java-tests, cpp-tests]  # optional dependency
 
