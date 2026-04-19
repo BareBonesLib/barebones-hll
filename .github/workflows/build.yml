@@ -1,9 +1,7 @@
 name: Build JAR
 
 on:
-  push:
-    branches: [ github-setup ]
-  workflow_dispatch:  # allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
