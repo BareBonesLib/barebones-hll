@@ -7,13 +7,18 @@ import json
 import subprocess
 from pathlib import Path
 from typing import List
+import xml.etree.ElementTree as ET
 
 from .base_driver import DeserializeResult, MergeResult, SerializeResult
 
 # Path to the compiled Java CLI jar — resolved relative to this file
-_DRIVERS_DIR = Path(__file__).parent
+_DRIVERS_DIR  = Path(__file__).parent
 _REPO_ROOT    = _DRIVERS_DIR.parent.parent
-_JAR          = _REPO_ROOT / "java" / "target" / "bareboneshll-1.0-SNAPSHOT-with-deps.jar"
+
+_POM          = _REPO_ROOT / "java" / "pom.xml"
+ns            = {"m": "http://maven.apache.org/POM/4.0.0"}
+version       = ET.parse(_POM).getroot().findtext("m:version", namespaces=ns)
+_JAR          = _REPO_ROOT / "java" / "target" / f"barebones-hll-{version}-with-deps.jar"
 _CLI_CLASS    = "io.github.bareboneslib.bareboneshll.HLLCli"
 
 
