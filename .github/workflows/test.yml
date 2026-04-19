@@ -2,6 +2,7 @@ name: Test Manual
 
 on:
   workflow_dispatch:
+    branches: [ github-setup ]
 
 jobs:
   test:
