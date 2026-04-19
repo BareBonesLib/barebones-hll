@@ -1,8 +1,8 @@
 name: Tests
 
 on:
-  push:
-    branches: [ github-setup ]
+  # push:
+  #   branches: [ github-setup ]
   workflow_dispatch:
 
 jobs:
