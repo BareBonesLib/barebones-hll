@@ -5,14 +5,41 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.bareboneslib</groupId>
-    <artifactId>bareboneshll</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>barebones-hll</artifactId>
+    <version>0.0.1-SNAPSHOT-alpha-test</version>
     <packaging>jar</packaging>
+
+    <name>barebones-hll</name>
+    <description>A bare-bones HyperLogLog++ implementation</description>
+    <url>https://github.com/BareBonesLib/barebones-hll</url>
+
+    <licenses>
+    <license>
+        <name>Apache License, Version 2.0</name>
+        <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        <distribution>repo</distribution>
+    </license>
+    </licenses>
+
+    <developers>
+    <developer>
+        <id>SiddheshDhinge</id>
+        <name>Siddhesh Dhinge</name>
+        <email>saddy97531@gmail.com</email>
+    </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/BareBonesLib/barebones-hll.git</connection>
+        <developerConnection>scm:git:ssh://github.com/BareBonesLib/barebones-hll.git</developerConnection>
+        <url>https://github.com/BareBonesLib/barebones-hll</url>
+    </scm>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <skipSigning>true</skipSigning>
     </properties>
 
     <dependencies>
@@ -89,7 +116,76 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Sources jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                    <id>attach-sources</id>
+                    <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Javadoc jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.7.0</version>
+                <executions>
+                    <execution>
+                    <id>attach-javadocs</id>
+                    <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- GPG signing -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.4</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals><goal>sign</goal></goals>
+                        <configuration>
+                            <skip>${skipSigning}</skip>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Central Publishing Plugin (replaces old Nexus plugin) -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.5.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>false</autoPublish>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>central</id>
+            <url>https://central.sonatype.com/repository/snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>central</id>
+            <url>https://central.sonatype.com/</url>
+        </repository>
+    </distributionManagement>
 </project>
