@@ -72,5 +72,4 @@ jobs:
       - name: Run interop tests
         run: |
           cd interop_tests
-          source venv/bin/activate
           make clean all
