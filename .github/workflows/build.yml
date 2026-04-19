@@ -4,7 +4,6 @@ on:
   push:
     branches: [ github-setup ]
   workflow_dispatch:  # allows manual trigger
-    branches: [ github-setup ]
 
 jobs:
   build:
