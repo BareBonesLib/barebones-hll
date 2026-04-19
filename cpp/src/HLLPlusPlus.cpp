@@ -210,7 +210,7 @@ void HLLPlusPlus::convertToNormal() {
     this->isSparse = false;
 }
 
-void HLLPlusPlus::sparseMerge(HLLPlusPlus other) {
+void HLLPlusPlus::sparseMerge(HLLPlusPlus& other) {
     std::vector<uint32_t> &a = this->sparseSet;
     std::vector<uint32_t> &b = other.sparseSet;
 
@@ -262,7 +262,7 @@ void HLLPlusPlus::sparseMerge(HLLPlusPlus other) {
     // }
 }
 
-void HLLPlusPlus::merge4(HLLPlusPlus other) {
+void HLLPlusPlus::merge4(HLLPlusPlus& other) {
     const uint32_t MASK = 0xf;
     const int REGISTERS_PER_BUCKET = 8;
     const int REGISTER_SIZE = 4;
@@ -287,7 +287,7 @@ void HLLPlusPlus::merge4(HLLPlusPlus other) {
     }
 }
 
-void HLLPlusPlus::merge5(HLLPlusPlus other) {
+void HLLPlusPlus::merge5(HLLPlusPlus& other) {
     const uint32_t MASK = 0x1f;
     const int REGISTERS_PER_BUCKET = 6;
     const int REGISTER_SIZE = 5;
@@ -312,7 +312,7 @@ void HLLPlusPlus::merge5(HLLPlusPlus other) {
     }
 }
 
-void HLLPlusPlus::merge6(HLLPlusPlus other) {
+void HLLPlusPlus::merge6(HLLPlusPlus& other) {
     const uint32_t MASK = 0x3f;
     const int REGISTERS_PER_BUCKET = 5;
     const int REGISTER_SIZE = 6;
@@ -337,7 +337,7 @@ void HLLPlusPlus::merge6(HLLPlusPlus other) {
     }
 }
 
-void HLLPlusPlus::normalMerge(HLLPlusPlus other) {
+void HLLPlusPlus::normalMerge(HLLPlusPlus& other) {
     switch(r) {
         case 4: merge4(other);
             break;
@@ -431,7 +431,7 @@ void HLLPlusPlus::add(uint64_t value) {
     }
 }
 
-bool HLLPlusPlus::merge(HLLPlusPlus other) {
+bool HLLPlusPlus::merge(HLLPlusPlus& other) {
     if (this->p != other.p || this->r != other.r)
         return false;
 
@@ -460,7 +460,7 @@ bool HLLPlusPlus::merge(HLLPlusPlus other) {
                     this->preEstimate -= PRE_POW_2_K[thisVal];
                     this->preEstimate += PRE_POW_2_K[val];
                     this->zeroRegs -= (thisVal == 0) ? 1 : 0;
-                    this->registers[bucketIndex] = (registerValue & ~maxRegisterValue) | (val << registerOffset);
+                    this->registers[bucketIndex] = (registerValue & ~(maxRegisterValue << registerOffset)) | (val << registerOffset);
                 }
             }
             break;
@@ -472,6 +472,7 @@ bool HLLPlusPlus::merge(HLLPlusPlus other) {
             normalMerge(other);
             break;
     }
+
     return true;
 }
 
@@ -488,7 +489,7 @@ int64_t HLLPlusPlus::estimate() {
     double zeroRegisters = this->zeroRegs;
 
     if(zeroRegisters != 0) {
-        double linearCountingEstimate = std::llround(M * log(M / zeroRegisters));
+        double linearCountingEstimate = std::llround(M * std::log(M / zeroRegisters));
         if(linearCountingEstimate <= empiricalThreshold[p - MIN_P])
             return std::llround(linearCountingEstimate);
     }
@@ -600,7 +601,7 @@ Container HLLPlusPlus::serialize() {
         buff[j++] = static_cast<uint8_t>((zeroRegs >> 8) & 0xFF);
         buff[j++] = static_cast<uint8_t>(zeroRegs & 0xFF);
         unsigned long long rawPreEstimate = 0;
-        memcpy(&rawPreEstimate, &preEstimate, sizeof(double));
+        memcpy(&rawPreEstimate, &(this->preEstimate), sizeof(double));
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 56) & 0xFFL);
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 48) & 0xFFL);
         buff[j++] = static_cast<uint8_t>((rawPreEstimate >> 40) & 0xFFL);
@@ -638,7 +639,13 @@ HLLPlusPlus HLLPlusPlus::deserialize(const unsigned char* buff, size_t buffSize)
     int mode = buff[j++];
     int p = buff[j++];
     int r = buff[j++];
-    int hllBufferSize = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
+    int hllBufferSize = (
+        ((buff[j] & 0xFF) << 24) | 
+        ((buff[j + 1] & 0xFF) << 16) | 
+        ((buff[j + 2] & 0xFF) << 8) | 
+        (buff[j + 3] & 0xFF)
+    );
+    j += 4;
     if(hllBufferSize != (buffSize - SERIALIZED_METADATA_FIELDS_BYTES))
         throw new std::invalid_argument("expeceted hll buffer length" + std::to_string(hllBufferSize) + " got: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS_BYTES));
 
@@ -648,28 +655,46 @@ HLLPlusPlus HLLPlusPlus::deserialize(const unsigned char* buff, size_t buffSize)
         int n = hllBufferSize / 4;
         hll.sparseSet = std::vector<uint32_t>(n);
         for (int i = 0; i < n; i++) {
-            hll.sparseSet[i] =
+            hll.sparseSet[i] = (
                 (uint8_t(buff[j]) << 24) |
                 (uint8_t(buff[j + 1]) << 16) |
                 (uint8_t(buff[j + 2]) << 8) |
-                uint8_t(buff[j + 3]);
+                uint8_t(buff[j + 3])
+            );
             j += 4;
         }
     } else {
         hll.isSparse = false;
         hll.registers = std::vector<uint32_t>(hll.m);
-        hll.zeroRegs = (((buff[j++] & 0xFF) << 24) | ((buff[j++] & 0xFF) << 16) | ((buff[j++] & 0xFF) << 8) | (buff[j++] & 0xFF));
-        unsigned long long rawPreEstimate = ((buff[j++] & 0xFFL) << 56) | ((buff[j++] & 0xFFL) << 48) | ((buff[j++] & 0xFFL) << 40) | ((buff[j++] & 0xFFL) << 32) | ((buff[j++] & 0xFFL) << 24) | ((buff[j++] & 0xFFL) << 16) | ((buff[j++] & 0xFFL) << 8) | (buff[j++] & 0xFFL);
+        hll.zeroRegs = (
+            ((buff[j] & 0xFF) << 24) | 
+            ((buff[j + 1] & 0xFF) << 16) | 
+            ((buff[j + 2] & 0xFF) << 8) | 
+            (buff[j + 3] & 0xFF)
+        );
+        j += 4;
+        unsigned long long rawPreEstimate = (
+            ((buff[j] & 0xFFL) << 56) |
+            ((buff[j + 1] & 0xFFL) << 48) | 
+            ((buff[j + 2] & 0xFFL) << 40) | 
+            ((buff[j + 3] & 0xFFL) << 32) | 
+            ((buff[j + 4] & 0xFFL) << 24) | 
+            ((buff[j + 5] & 0xFFL) << 16) | 
+            ((buff[j + 6] & 0xFFL) << 8) | 
+            (buff[j + 7] & 0xFFL)
+        );
+        j += 8;
         memcpy(&hll.preEstimate, &rawPreEstimate, sizeof(double));
         if ((hll.m * 4) != hllBufferSize)
             throw std::invalid_argument("dense HLL buffer invalid size: " + std::to_string(buffSize - SERIALIZED_METADATA_FIELDS_BYTES) + " got: " + std::to_string(hll.m * 4));
 
         for (int i = 0; i < hll.m; i++) {
-            hll.registers[i] =
+            hll.registers[i] = (
                 (uint8_t(buff[j]) << 24) |
                 (uint8_t(buff[j + 1]) << 16) |
                 (uint8_t(buff[j + 2]) << 8) |
-                uint8_t(buff[j + 3]);
+                uint8_t(buff[j + 3])
+            );
             j += 4;
         }
     }

@@ -93,15 +93,15 @@ private:
 
     void convertToNormal();
 
-    void sparseMerge(HLLPlusPlus other);
+    void sparseMerge(HLLPlusPlus& other);
 
-    void merge4(HLLPlusPlus other);
+    void merge4(HLLPlusPlus& other);
 
-    void merge5(HLLPlusPlus other);
+    void merge5(HLLPlusPlus& other);
 
-    void merge6(HLLPlusPlus other);
+    void merge6(HLLPlusPlus& other);
 
-    void normalMerge(HLLPlusPlus other);
+    void normalMerge(HLLPlusPlus& other);
 
     double estimateBias(double E);
 
@@ -128,7 +128,7 @@ public:
 
     void add(uint64_t value);
 
-    bool merge(HLLPlusPlus other);
+    bool merge(HLLPlusPlus& other);
 
     int64_t estimate();
 

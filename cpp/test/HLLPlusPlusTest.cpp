@@ -3,6 +3,7 @@
 #include <iomanip> 
 #include "../src/HLLPlusPlus.h"
 
+using bareboneshll::HLLPlusPlus;
 // ---------------------------------------------------------------------------
 // Helper — hash a 64-bit integer with xxHash before feeding to the sketch
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ LDLIBS   := -lxxhash
 
 SRC      := src/HLLPlusPlus.cpp
 OBJ      := build/HLLPlusPlus.o
+STATIC_LIB := build/libbareboneshll.a
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)
@@ -36,7 +37,7 @@ ifeq ($(shell echo "\#include <xxhash.h>" | $(CXX) $(CXXFLAGS) -x c++ -fsyntax-o
     $(warning   or:     make XXHASH_PREFIX=/path/to/xxhash)
 endif
 
-.PHONY: all install uninstall clean
+.PHONY: all build-static install install-static uninstall clean
 
 all: $(LIB)
 
@@ -46,8 +47,21 @@ $(LIB): $(OBJ)
 build/HLLPlusPlus.o: $(SRC) src/HLLPlusPlus.h | build
 	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $(SRC)
 
+$(STATIC_LIB): $(OBJ)
+	$(AR) rcs $@ $^
+
+build-static: $(STATIC_LIB)
+
 build:
 	mkdir -p build
+
+install-static: $(STATIC_LIB)
+	@[ "$$(id -u)" = "0" ] || { echo "Error: 'make install-static' must be run as root (use sudo)"; exit 1; }
+	mkdir -p $(INSTALL_LIB) $(INSTALL_INC)
+	cp $(STATIC_LIB) $(INSTALL_LIB)/
+	cp src/HLLPlusPlus.h $(INSTALL_INC)/
+	@echo "Installed static lib → $(INSTALL_LIB)/$(notdir $(STATIC_LIB))"
+	@echo "Installed header     → $(INSTALL_INC)/HLLPlusPlus.h"
 
 install: $(LIB)
 	@[ "$$(id -u)" = "0" ] || { echo "Error: 'make install' must be run as root (use sudo)"; exit 1; }
@@ -62,7 +76,8 @@ endif
 
 uninstall:
 	@[ "$$(id -u)" = "0" ] || { echo "Error: 'make uninstall' must be run as root (use sudo)"; exit 1; }
-	rm -f  $(INSTALL_LIB)/$(notdir $(LIB))
+	rm -f $(INSTALL_LIB)/$(notdir $(LIB))
+	rm -f $(INSTALL_LIB)/$(notdir $(STATIC_LIB))
 	rm -rf $(INSTALL_INC)
 	@echo "Uninstalled"
 
