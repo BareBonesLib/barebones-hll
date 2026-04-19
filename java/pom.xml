@@ -6,7 +6,7 @@
 
     <groupId>io.github.bareboneslib</groupId>
     <artifactId>barebones-hll</artifactId>
-    <version>0.0.1-publish-alpha-test</version>
+    <version>0.5.1</version>
     <packaging>jar</packaging>
 
     <name>barebones-hll</name>
