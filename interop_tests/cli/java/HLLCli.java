@@ -15,13 +15,13 @@ import net.openhft.hashing.LongHashFunction;
  *
  * Protocol:
  *   serialize:   {"op":"serialize", "p":int, "r":int, "values":[long,...]}
- *                → {"bytes":"<b64>", "estimate":long}
+ *                → {"bytes":"{@code <b64>}", "estimate":long}
  *
- *   deserialize: {"op":"deserialize", "bytes":"<b64>"}
+ *   deserialize: {"op":"deserialize", "bytes":"{@code <b64>}"}
  *                → {"estimate":long}
  *
- *   merge:       {"op":"merge", "sketches":["<b64>","<b64>",...]}
- *                → {"bytes":"<b64>", "estimate":long}
+ *   merge:       {"op":"merge", "sketches":["{@code <b64>}","{@code <b64>}",...]}
+ *                → {"bytes":"{@code <b64>}", "estimate":long}
  */
 public class HLLCli {
     static LongHashFunction hash = LongHashFunction.xx();
