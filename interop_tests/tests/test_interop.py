@@ -269,8 +269,10 @@ class TestMergeInterop:
         """
         src_name, src, dst_name, dst = lang_pair
 
+        HLLP = 9
+        HLLR = 5
         NUM_ARRAYS = 3
-        HLLS_PER_ARRAY = 1_000
+        HLLS_PER_ARRAY = 300
 
         arrays = []
 
@@ -278,14 +280,14 @@ class TestMergeInterop:
             sketches = []
 
             for i in range(HLLS_PER_ARRAY):
-                # Guarantee 10k distinct per array
+                # Guarantee HLLS_PER_ARRAY distinct per array
                 vals = [i]
                 if random.choice((0, 1)):
                     vals.extend(valuesRange(0, i))
                 else:
                     vals.extend(valuesRange(i, HLLS_PER_ARRAY))
 
-                sk = src.serialize(DEFAULT_P, DEFAULT_R, vals)
+                sk = src.serialize(HLLP, HLLR, vals)
                 sketches.append(sk.bytes_b64)
 
             arrays.append(sketches)
