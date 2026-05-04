@@ -33,19 +33,19 @@ private:
     int sparseListIndex;
 
     // below are constants
-    static const unsigned char VERSION = 1;
-    static const int TEMPORARY_LIST_SIZE = 5;
-    static const int MIN_P = 4;
-    static const int MAX_P = 18;
-    static const int MIN_R = 4;
-    static const int MAX_R = 6;
-    static const int DEFAULT_P = 12;
-    static const int DEFAULT_R = 6;
-    static const int SPARSE_P_EXTRA_BITS = 4;
-    static const int DT_WIDTH = 32;
-    static const int SPARSE_SERIALIZED_METADATA_FIELDS_BYTES = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length
-    static const int DENSE_SERIALIZED_METADATA_FIELDS_BYTES = 20; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length, 4 byte zeroRegs, 8 byte preEstimate
-    static const int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
+    static constexpr unsigned char VERSION = 1;
+    static constexpr int TEMPORARY_LIST_SIZE = 5;
+    static constexpr int MIN_P = 4;
+    static constexpr int MAX_P = 18;
+    static constexpr int MIN_R = 4;
+    static constexpr int MAX_R = 6;
+    static constexpr int DEFAULT_P = 12;
+    static constexpr int DEFAULT_R = 6;
+    static constexpr int SPARSE_P_EXTRA_BITS = 4;
+    static constexpr int DT_WIDTH = 32;
+    static constexpr int SPARSE_SERIALIZED_METADATA_FIELDS_BYTES = 8; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length
+    static constexpr int DENSE_SERIALIZED_METADATA_FIELDS_BYTES = 20; // 1 byte version, 1 byte mode, 1 byte p, 1 byte r, 4 byte buffer length, 4 byte zeroRegs, 8 byte preEstimate
+    static constexpr int EMPIRICAL_BIAS_CORRECTION_OVER_ESTIMATES = 6;
     static std::vector<std::vector<double>> empiricalRawEstimateData;
     static std::vector<std::vector<double>> empiricalBiasData;
     static const int empiricalThreshold[];
