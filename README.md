@@ -115,14 +115,11 @@ mvn package
 ```
 
 ---
-
 ## C++ Implementation
 
 ### Dependency
 
-The C++ implementation has a single external dependency: **xxHash**.
-
-Install via your package manager:
+The only external dependency is **xxHash**.
 
 ```bash
 # macOS
@@ -136,17 +133,48 @@ apt-get install libxxhash-dev
 
 ```bash
 cd cpp
-mkdir build && cd build
-cmake ..
 make
 ```
 
-This produces a shared library (`libbareboneshll.so` on Linux, `libbareboneshll.dylib` on macOS).
+This produces `build/libbareboneshll.dylib` on macOS or `build/libbareboneshll.so` on Linux.
+
+To build and install system-wide (copies lib to `/usr/local/lib` and header to `/usr/local/include/bareboneshll/`):
+
+```bash
+sudo make install
+```
+
+To build a static library instead:
+
+```bash
+make build-static       # produces build/libbareboneshll.a
+sudo make install-static
+```
+
+To uninstall:
+
+```bash
+sudo make uninstall
+```
+
+**Linux note**: if xxhash is installed to a non-standard path, pass it explicitly:
+
+```bash
+make XXHASH_PREFIX=/path/to/xxhash
+```
 
 ### Linking
 
+After `sudo make install`:
+
 ```bash
 g++ your_program.cpp -lbareboneshll -lxxhash -o your_program
+```
+
+Or against the static library:
+
+```bash
+g++ your_program.cpp -lbareboneshll -lxxhash -static -o your_program
 ```
 
 ### API
@@ -163,7 +191,7 @@ HLLPlusPlus hll(int p, int r);
 // Core operations
 hll.add(uint64_t hash);              // add a 64-bit hash value
 int64_t count = hll.estimate();      // get cardinality estimate
-hll.merge(HLLPlusPlus& other);       // merge another sketch (union)
+hll.merge(HLLPlusPlus& other);       // merge another sketch into this one (union)
 
 // Serialization — returns std::vector<uint8_t> by default
 auto bytes = hll.serialize();
@@ -176,18 +204,15 @@ HLLPlusPlus hll = HLLPlusPlus::deserialize(const unsigned char*, size_t);
 ### Usage Example
 
 ```cpp
-#include "HLLPlusPlus.h"
+#include <bareboneshll/HLLPlusPlus.h>
 #include <xxhash.h>
 
 using namespace bareboneshll;
 
 HLLPlusPlus hll(12, 6);
 
-// Hash elements before adding
-auto h1 = XXH3_64bits("user-1001", 9);
-auto h2 = XXH3_64bits("user-1002", 9);
-hll.add(h1);
-hll.add(h2);
+hll.add(XXH3_64bits("user-1001", 9));
+hll.add(XXH3_64bits("user-1002", 9));
 
 int64_t estimate = hll.estimate();
 
@@ -200,7 +225,6 @@ hll.merge(hll2);
 auto bytes = hll.serialize();
 HLLPlusPlus restored = HLLPlusPlus::deserialize(bytes);
 ```
-
 ---
 
 ## Parameters
