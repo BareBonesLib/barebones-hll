@@ -495,7 +495,7 @@ int64_t HLLPlusPlus::estimate() {
     }
 
     double alphaM = getAlphaM(totalRegisters);
-    double rawEstimate = alphaM * M * M * (1 / sum);
+    double rawEstimate = alphaM * M * M * (1.0 / sum);
     if(rawEstimate <= 5.0 * M) {
         rawEstimate = rawEstimate - estimateBias(rawEstimate);
     }
@@ -506,6 +506,8 @@ int64_t HLLPlusPlus::estimate() {
 double HLLPlusPlus::estimateBias(double E) {
     std::vector<double> currentEmpiricalRawEstimateData = empiricalRawEstimateData[p - MIN_P];
     std::vector<double> currentEmpiricalBiasData = empiricalBiasData[p - MIN_P];
+    if(currentEmpiricalBiasData.size() != currentEmpiricalRawEstimateData.size())
+        throw std::logic_error("Internal invariant violated: size mismatch");
 
     int n = currentEmpiricalBiasData.size();
     if(E < currentEmpiricalRawEstimateData[0] || E > currentEmpiricalRawEstimateData[n - 1])
@@ -530,14 +532,14 @@ double HLLPlusPlus::estimateBias(double E) {
 
     if(E == currentEmpiricalRawEstimateData[prev]) {
         int leftPoint = std::max(0, prev - halfPoints);
-        int rightPoint = std::max(n - 1, prev + halfPoints);
+        int rightPoint = std::min(n - 1, prev + halfPoints);
         int eqDistance = std::min(rightPoint - prev, prev - leftPoint);
         trimmedLeftPoint = prev - eqDistance;
         trimmedRightPoint = prev + eqDistance;
     }
     else {
         int leftPoint = std::max(0, prev - halfPoints);
-        int rightPoint = std::max(n - 1, prev + (halfPoints - 1));
+        int rightPoint = std::min(n - 1, prev + (halfPoints - 1));
         int eqDistance = std::min(rightPoint - prev + 1, prev - leftPoint);
         trimmedLeftPoint = prev - eqDistance;
         trimmedRightPoint = prev + eqDistance - 1;
