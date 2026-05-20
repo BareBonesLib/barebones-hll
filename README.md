@@ -4,7 +4,7 @@
 [![Build](https://github.com/BareBonesLib/barebones-hll/actions/workflows/build.yml/badge.svg)](https://github.com/BareBonesLib/barebones-hll/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-Minimal, high-performance, cross-language **HyperLogLog++** (HLL++) implementations in Java and C++.
+Minimal, high-performance, cross-language **HyperLogLog++** (HLL++) implementations in Java and C++, designed for performance in distributed computation.
 
 Sketches are binary-compatible across languages — a sketch serialized in Java deserializes correctly in C++, and vice versa.
 
@@ -316,7 +316,20 @@ All interop tests must pass before any change is merged.
 
 ## Benchmarks
 
-[Benchmark results and methodology to be added here.]
+Full benchmark results with methodology and visualizations: 
+- **GitHub**: [https://github.com/BareBonesLib/hll-benchmarks](https://github.com/BareBonesLib/hll-benchmarks)
+- **Performace Test Results (check Preset Benchmarks)**: [https://bareboneslib.github.io/hll-benchmarks/](https://bareboneslib.github.io/hll-benchmarks/)
+
+The tables below summarize the speedup of BareBones-HLL++ over competing implementations.
+
+| Runtime | vs DataSketches HLL++ | vs Clearspring HLL++ |
+|---------|-----------------------|----------------------|
+| JVM     | ~22x faster           | ~4.5x faster         |
+| Native  | ~59x faster           | NA                   |
+
+> Speedup is a single weighted composite score across `add`, `merge`, `serialize`, `deserialize`, and `estimate` operations. See the full benchmarks page for methodology and per-operation breakdown.
+
+> All benchmarks run at p=12 (default precision). See the full results page for results across precision levels and cardinality ranges.
 
 ---
 
