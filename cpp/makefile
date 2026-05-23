@@ -44,7 +44,7 @@ all: $(LIB)
 $(LIB): $(OBJ)
 	$(CXX) $(SHARED_FLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-build/HLLPlusPlus.o: $(SRC) src/HLLPlusPlus.h | build
+build/HLLPlusPlus.o: $(SRC) src/HLLPlusPlus.h src/version.h | build
 	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $(SRC)
 
 $(STATIC_LIB): $(OBJ)
@@ -60,6 +60,7 @@ install-static: $(STATIC_LIB)
 	mkdir -p $(INSTALL_LIB) $(INSTALL_INC)
 	cp $(STATIC_LIB) $(INSTALL_LIB)/
 	cp src/HLLPlusPlus.h $(INSTALL_INC)/
+	cp src/version.h $(INSTALL_INC)/
 	@echo "Installed static lib → $(INSTALL_LIB)/$(notdir $(STATIC_LIB))"
 	@echo "Installed header     → $(INSTALL_INC)/HLLPlusPlus.h"
 
@@ -68,6 +69,7 @@ install: $(LIB)
 	mkdir -p $(INSTALL_LIB) $(INSTALL_INC)
 	cp $(LIB) $(INSTALL_LIB)/
 	cp src/HLLPlusPlus.h $(INSTALL_INC)/
+	cp src/version.h $(INSTALL_INC)/
 	@echo "Installed lib    → $(INSTALL_LIB)/$(notdir $(LIB))"
 	@echo "Installed header → $(INSTALL_INC)/HLLPlusPlus.h"
 ifeq ($(UNAME), Darwin)
