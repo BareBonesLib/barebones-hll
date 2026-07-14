@@ -528,8 +528,10 @@ public class HLLPlusPlus {
         assert(currentEmpiricalBiasData.length == currentEmpiricalRawEstimateData.length);
 
         int n = currentEmpiricalRawEstimateData.length;
-        if(E < currentEmpiricalRawEstimateData[0] || E > currentEmpiricalRawEstimateData[n - 1])
-            return E;
+        if(E < currentEmpiricalRawEstimateData[0])
+            return currentEmpiricalBiasData[0];
+        if(E > currentEmpiricalRawEstimateData[n - 1])
+            return currentEmpiricalBiasData[n - 1];
 
         int left = 0, right = n - 1;
         int prev = -1;
