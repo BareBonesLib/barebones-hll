@@ -510,8 +510,10 @@ double HLLPlusPlus::estimateBias(double E) {
         throw std::logic_error("Internal invariant violated: size mismatch");
 
     int n = currentEmpiricalBiasData.size();
-    if(E < currentEmpiricalRawEstimateData[0] || E > currentEmpiricalRawEstimateData[n - 1])
-        return E;
+    if(E < currentEmpiricalRawEstimateData[0])
+        return currentEmpiricalBiasData[0];
+    if(E > currentEmpiricalRawEstimateData[n - 1])
+        return currentEmpiricalBiasData[n - 1];
     
     int left = 0, right = n - 1;
     int prev = -1;
