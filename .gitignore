@@ -2,6 +2,7 @@
 !**/src/main/**/target/
 !**/src/test/**/target/
 .kotlin
+**/dependency-reduced-pom.xml
 
 ### IntelliJ IDEA ###
 .idea/**
